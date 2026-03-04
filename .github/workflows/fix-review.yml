@@ -25,8 +25,30 @@ jobs:
           allowed_bots: "coderabbitai[bot]"
 
           prompt: |
-            The PR received review comments requesting changes.
-            Fix the issues mentioned in the review.
+            You are an autonomous code fixing agent.
+
+            First gather context:
+
+            1. Retrieve PR information
+            2. Retrieve all review comments
+
+            Use:
+
+            gh pr view ${{ github.event.pull_request.number }} --comments
+
+            Then:
+
+            1. Identify issues raised by reviewers
+            2. Locate affected files
+            3. Implement minimal fixes
+            4. Run tests
+            5. Commit fixes
+
+            Constraints:
+
+            - Fix only issues mentioned in review
+            - Do not modify unrelated code
+            - Keep changes minimal
 
           claude_args: |
             --allowed-tools "Read,Edit,Glob,Grep,LS,Bash(git:*),Bash(gh pr:*),Bash(npm test:*)"
