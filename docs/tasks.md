@@ -19,23 +19,23 @@
 
 ## Phase 2: GitHub リポジトリセットアップ
 
-- [ ] 2.1 リポジトリ作成 (`gh repo create aloekun/auto-review-fix-sandbox --private --clone`)
-- [ ] 2.2 jj colocated 初期化 (`jj git init --colocate`)
-- [ ] 2.3 Phase 1 のファイルを main にプッシュ
-- [ ] 2.4 GitHub Secret 設定 (`ANTHROPIC_API_KEY`)
-- [ ] 2.5 Label 作成 (`needs-human-review`)
-- [ ] 2.6 Code Rabbit インストール (GitHub App)
+- [x] 2.1 リポジトリ作成 (`gh repo create aloekun/auto-review-fix-sandbox --private --clone`)
+- [x] 2.2 jj colocated 初期化 (`jj git init --colocate`)
+- [x] 2.3 Phase 1 のファイルを main にプッシュ
+- [x] 2.4 GitHub Secret 設定 (`ANTHROPIC_API_KEY`)
+- [x] 2.5 Label 作成 (`needs-human-review`)
+- [x] 2.6 Code Rabbit インストール (GitHub App)
 
 ## Phase 3: 基本動作検証
 
-- [ ] 3.1 テスト用ブランチ作成 (`jj new main`)
-- [ ] 3.2 `src/sample.ts` に問題コードを追加
-- [ ] 3.3 ブランチをプッシュしてPR作成
-- [ ] 3.4 Code Rabbit のレビューが発火することを確認
-- [ ] 3.5 レビュー状態が `CHANGES_REQUESTED` であることを確認
-- [ ] 3.6 Auto Fix Review ワークフローが発火することを確認
-- [ ] 3.7 Claude Code Action が修正コミットをプッシュすることを確認
-- [ ] 3.8 PR body に `<!-- claude-autofix-count:1 -->` が記録されることを確認
+- [x] 3.1 テスト用ブランチ作成 (`jj new main`)
+- [x] 3.2 `src/sample.ts` に問題コードを追加
+- [x] 3.3 ブランチをプッシュしてPR作成
+- [x] 3.4 Code Rabbit のレビューが発火することを確認
+- [x] 3.5 レビュー状態が `CHANGES_REQUESTED` であることを確認
+- [x] 3.6 Auto Fix Review ワークフローが発火することを確認
+- [ ] 3.7 Claude Code Action が修正コミットをプッシュすることを確認 (**未達: パーミッション拒否**)
+- [x] 3.8 PR body に `<!-- claude-autofix-count:1 -->` が記録されることを確認
 
 ## Phase 4: ループ上限検証
 
