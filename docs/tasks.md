@@ -4,12 +4,12 @@
 
 ## Phase 1: ファイル作成 (ローカル)
 
-- [ ] 1.1 `.gitignore` を作成
-- [ ] 1.2 `package.json` を作成
-- [ ] 1.3 `tsconfig.json` を作成
-- [ ] 1.4 `src/sample.ts` を作成 (空ファイル: `// sample module` のみ)
-- [ ] 1.5 `.coderabbit.yaml` を作成
-- [ ] 1.6 `.github/workflows/fix-review.yml` を作成
+- [x] 1.1 `.gitignore` を作成
+- [x] 1.2 `package.json` を作成
+- [x] 1.3 `tsconfig.json` を作成
+- [x] 1.4 `src/sample.ts` を作成 (空ファイル: `// sample module` のみ)
+- [x] 1.5 `.coderabbit.yaml` を作成
+- [x] 1.6 `.github/workflows/fix-review.yml` を作成
   - techbook-ledger のワークフローを参照し、ドラフトと照合・調整
   - レビュアーフィルタ (`coderabbitai[bot]`)
   - concurrency group (PR 番号ごと、cancel-in-progress: true)

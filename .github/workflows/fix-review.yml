@@ -1,0 +1,94 @@
+name: Auto Fix Review
+
+on:
+  pull_request_review:
+    types: [submitted]
+
+concurrency:
+  group: auto-review-fix-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+permissions:
+  contents: write
+  pull-requests: write
+  issues: write
+
+jobs:
+  fix-review:
+    if: >
+      github.event.review.user.login == 'coderabbitai[bot]'
+      && (github.event.review.state == 'changes_requested'
+        || github.event.review.state == 'commented')
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check loop count
+        id: check-count
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          PR_NUMBER=${{ github.event.pull_request.number }}
+          BODY=$(gh pr view "$PR_NUMBER" --repo "${{ github.repository }}" --json body -q '.body')
+          COUNT=$(printf '%s' "$BODY" | grep -oP '<!-- claude-autofix-count:\K\d+' | tail -n1 || true)
+          COUNT=${COUNT:-0}
+          echo "count=$COUNT" >> "$GITHUB_OUTPUT"
+          if [ "$COUNT" -ge 3 ]; then
+            echo "limit_reached=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "limit_reached=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Notify limit reached
+        if: steps.check-count.outputs.limit_reached == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          PR_NUMBER=${{ github.event.pull_request.number }}
+          REPO="${{ github.repository }}"
+          gh pr comment "$PR_NUMBER" --repo "$REPO" \
+            --body "Auto-fix has reached the maximum retry limit (3). Please review manually."
+          gh pr edit "$PR_NUMBER" --repo "$REPO" --add-label "needs-human-review"
+
+      - name: Checkout repository
+        if: steps.check-count.outputs.limit_reached == 'false'
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.ref }}
+
+      - name: Run Claude Code Action
+        if: steps.check-count.outputs.limit_reached == 'false'
+        uses: anthropics/claude-code-action@64c7a0ef71df67b14cb4471f4d9c8565c61042bf # v1
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          allowed_bots: "coderabbitai[bot]"
+          prompt: |
+            This PR has received review feedback from Code Rabbit.
+            Fix the issues pointed out in the review comments.
+
+            Constraints:
+            - Only make minimal changes necessary to address the review comments
+            - Do not modify files that are not mentioned in the review
+            - Do not perform large-scale refactoring
+            - Do not add new features or make major code style changes
+            - Use commit message format: fix: address review comment - {summary}
+
+      - name: Increment loop count
+        if: steps.check-count.outputs.limit_reached == 'false'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          PR_NUMBER=${{ github.event.pull_request.number }}
+          REPO="${{ github.repository }}"
+          BODY=$(gh pr view "$PR_NUMBER" --repo "$REPO" --json body -q '.body')
+          COUNT=${{ steps.check-count.outputs.count }}
+          NEW_COUNT=$((COUNT + 1))
+
+          if echo "$BODY" | grep -q '<!-- claude-autofix-count:'; then
+            NEW_BODY=$(printf '%s' "$BODY" | sed -E "s/<!-- claude-autofix-count:[0-9]+ -->/<!-- claude-autofix-count:$NEW_COUNT -->/g")
+          else
+            NEW_BODY="${BODY}
+          <!-- claude-autofix-count:$NEW_COUNT -->"
+          fi
+
+          gh pr edit "$PR_NUMBER" --repo "$REPO" --body "$NEW_BODY"
