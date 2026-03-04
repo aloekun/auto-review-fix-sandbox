@@ -20,6 +20,7 @@ jobs:
       && (github.event.review.state == 'changes_requested'
         || github.event.review.state == 'commented')
     runs-on: ubuntu-latest
+    timeout-minutes: 10
 
     steps:
       - name: Check loop count
@@ -63,7 +64,9 @@ jobs:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           allowed_bots: "coderabbitai[bot]"
           claude_args: |
-            --allowedTools "Bash(git add *),Bash(git commit *),Bash(git push *),Bash(git diff *),Bash(git log *),Bash(git status)"
+            --allowedTools "Edit,MultiEdit,Glob,Grep,LS,Read,Write,Bash(git add:*),Bash(git commit:*),Bash(git push:*),Bash(git status:*),Bash(git diff:*),Bash(git log:*),Bash(git rm:*)"
+            --max-turns 20
+            --disallowedTools "WebFetch,WebSearch"
           prompt: |
             This PR has received review feedback from Code Rabbit.
             Fix the issues pointed out in the review comments.
