@@ -1,0 +1,33 @@
+name: Claude CI Fix
+
+on:
+  workflow_run:
+    workflows: ["CI"]
+    types:
+      - completed
+
+jobs:
+  fix:
+    if: ${{ github.event.workflow_run.conclusion == 'failure' }}
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: write
+      pull-requests: write
+      actions: read
+      id-token: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Fix CI
+        uses: anthropics/claude-code-action@v1
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+
+          prompt: |
+            The CI workflow failed.
+            Analyze the CI logs and fix the failing tests or build errors.
+
+          additional_permissions: |
+            actions: read
