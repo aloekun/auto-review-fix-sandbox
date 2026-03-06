@@ -1,23 +1,30 @@
 // sample module
 
 export function divide(a: number, b: number) {
+  if (b === 0 || !isFinite(b)) {
+    throw new Error("Invalid denominator: zero or non-finite");
+  }
   return a / b;
 }
 
-export function parseAge(input: any): number {
-  return parseInt(input);
+export function parseAge(input: string | number): number {
+  const parsed = parseInt(String(input), 10);
+  if (!Number.isFinite(parsed)) {
+    throw new Error(`Invalid age: "${input}" could not be parsed as an integer`);
+  }
+  return parsed;
 }
 
-export function getItems(data: any[]) {
-  var result = [];
-  for (var i = 0; i < data.length; i++) {
+export function getItems<T>(data: T[]): T[] {
+  const result: T[] = [];
+  for (let i = 0; i < data.length; i++) {
     result.push(data[i]);
   }
   return result;
 }
 
-export function toUpperCase(value: string | undefined) {
-  return value!.toUpperCase();
+export function toUpperCase(value: string): string {
+  return value.toUpperCase();
 }
 
 export function fetchData(url: string) {
