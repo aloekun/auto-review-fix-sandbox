@@ -31,3 +31,6 @@ jobs:
 
           additional_permissions: |
             actions: read
+
+          claude_args: |
+            --allowed-tools "Read,Edit,Glob,Grep,LS,Bash(git:*),Bash(gh pr:*),Bash(npm test:*)"

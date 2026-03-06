@@ -6,25 +6,47 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## コマンド
 
+Bash コマンドは `pnpm` スクリプト経由で実行する（許可管理の簡素化のため）。`jj` や `gh` を直接実行せず、対応する `pnpm` スクリプトを使うこと。
+
+| スクリプト | 実行内容 | 用途 |
+|-----------|---------|------|
+| `pnpm jj-status` | `jj status` | 状態確認 |
+| `pnpm jj-log [opts]` | `jj log [opts]` | 履歴表示 |
+| `pnpm jj-diff [opts]` | `jj diff [opts]` | 差分表示 |
+| `pnpm jj-describe [opts]` | `jj describe [opts]` | 変更を記述 |
+| `pnpm jj-new [target]` | `jj new [target]` | 新しい変更を作成 |
+| `pnpm jj-squash` | `jj squash` | 変更を圧縮 |
+| `pnpm jj-bookmark [opts]` | `jj bookmark [opts]` | ブックマーク操作 |
+| `pnpm jj-rebase [opts]` | `jj rebase [opts]` | リベース |
+| `pnpm jj-edit [rev]` | `jj edit [rev]` | リビジョン編集 |
+| `pnpm jj-restore [opts]` | `jj restore [opts]` | ファイル復元 |
+| `pnpm jj-fetch` | `jj git fetch` | リモート取得 |
+| `pnpm jj-push [opts]` | `jj git push [opts]` | リモートへプッシュ |
+| `pnpm gh-repo [opts]` | `gh repo [opts]` | リポジトリ操作 |
+| `pnpm gh-pr [opts]` | `gh pr [opts]` | PR 操作 |
+| `pnpm gh-run [opts]` | `gh run [opts]` | ワークフロー実行管理 |
+| `pnpm gh-api [opts]` | `gh api [opts]` | GitHub API |
+| `pnpm gh-secret [opts]` | `gh secret [opts]` | シークレット管理 |
+
 ## テスト
 
 ## バージョン管理 (Jujutsu)
 
-**`git` コマンドは `.claude/validate-command.exe` フックによりブロックされる。** 代わりに `jj` を使用する。
+**`git` コマンドは `.claude/validate-command.exe` フックによりブロックされる。** 代わりに `jj` を `pnpm` スクリプト経由で使用する。
 
 ```bash
-jj status                              # 状態確認
-jj diff                                # 差分
-jj log                                 # 履歴
-jj new develop                         # develop の上に新しい変更を作成（作業開始時に必須）
-jj describe -m "feat(scope): message"  # 変更を記述
-jj bookmark create feature/N-desc      # ブックマーク作成 (describe 後に実行)
-jj git push --bookmark name            # push (初回は --allow-new 追加)
-jj git fetch                           # fetch
-gh pr create --base develop ...        # PR 作成 (gh CLI 使用)
+pnpm jj-status                              # 状態確認
+pnpm jj-diff                                # 差分
+pnpm jj-log                                 # 履歴
+pnpm jj-new develop                         # develop の上に新しい変更を作成（作業開始時に必須）
+pnpm jj-describe -m "feat(scope): message"  # 変更を記述
+pnpm jj-bookmark create feature/N-desc      # ブックマーク作成 (describe 後に実行)
+pnpm jj-push --bookmark name                # push (初回は --allow-new 追加)
+pnpm jj-fetch                               # fetch
+pnpm gh-pr create --base develop ...        # PR 作成 (gh CLI 使用)
 ```
 
-**注意**: 作業開始時は必ず `jj new develop` で空の変更を作成してから作業する。develop ブックマーク上で直接作業するとブックマーク競合の原因になる。
+**注意**: 作業開始時は必ず `pnpm jj-new develop` で空の変更を作成してから作業する。develop ブックマーク上で直接作業するとブックマーク競合の原因になる。
 
 詳細は [ai/rules/VCS_JUJUTSU.md](ai/rules/VCS_JUJUTSU.md) を参照。
 
