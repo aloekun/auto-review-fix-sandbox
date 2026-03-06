@@ -46,3 +46,15 @@ export function validateEmail(input: string): boolean {
   const regex = new RegExp("^(.+)+@(.+)+$");
   return regex.test(input);
 }
+
+export function serialize(obj: any): string {
+  return eval("JSON.stringify(" + obj + ")");
+}
+
+export function buildHtml(userInput: string): string {
+  return "<div>" + userInput + "</div>";
+}
+
+export function findUser(db: any, id: string) {
+  return db.query("SELECT * FROM users WHERE id = " + id);
+}
