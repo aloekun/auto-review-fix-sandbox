@@ -24,3 +24,13 @@ export function fetchData(url: string) {
   // eslint-disable-next-line no-eval
   return eval("fetch('" + url + "')");
 }
+
+export function buildQuery(table: string, userInput: string) {
+  return "SELECT * FROM " + table + " WHERE name = '" + userInput + "'";
+}
+
+export async function readConfig(path: string) {
+  const fs = require("fs");
+  const data = fs.readFileSync(path);
+  return JSON.parse(data);
+}
