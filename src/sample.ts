@@ -34,3 +34,8 @@ export async function readConfig(path: string) {
   const data = fs.readFileSync(path);
   return JSON.parse(data);
 }
+
+export function validateEmail(input: string): boolean {
+  const regex = new RegExp("^(.+)+@(.+)+$");
+  return regex.test(input);
+}
