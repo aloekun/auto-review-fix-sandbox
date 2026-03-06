@@ -24,12 +24,13 @@
 
 ## Phase 2: GitHub リポジトリセットアップ
 
-- [x] 2.1 リポジトリ作成
-- [x] 2.2 jj colocated 初期化
-- [x] 2.3 Phase 1 のファイルを main にプッシュ
+- [x] 2.1 リポジトリ作成 (`aloekun/auto-review-fix-sandbox` private)
+- [x] 2.2 jj colocated 初期化 (既存)
+- [x] 2.3 Phase 1 のファイルを main にプッシュ (develop も作成済み)
 - [x] 2.4 GitHub Secret 設定 (`ANTHROPIC_API_KEY`)
 - [x] 2.5 Label 作成 (`needs-human-review`)
 - [x] 2.6 Code Rabbit インストール (GitHub App)
+- [x] 2.7 リポジトリを public に変更 (CodeRabbit 無料プラン要件)
 
 ## Phase 3: 基本動作検証
 
