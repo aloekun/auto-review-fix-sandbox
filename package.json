@@ -1,5 +1,24 @@
 {
   "name": "auto-review-fix-sandbox",
   "version": "0.0.1",
-  "private": true
+  "private": true,
+  "scripts": {
+    "jj-status": "jj status",
+    "jj-log": "jj log",
+    "jj-diff": "jj diff",
+    "jj-describe": "jj describe",
+    "jj-new": "jj new",
+    "jj-squash": "jj squash",
+    "jj-bookmark": "jj bookmark",
+    "jj-rebase": "jj rebase",
+    "jj-edit": "jj edit",
+    "jj-restore": "jj restore",
+    "jj-fetch": "jj git fetch",
+    "jj-push": "jj git push",
+    "gh-repo": "gh repo",
+    "gh-pr": "gh pr",
+    "gh-run": "gh run",
+    "gh-api": "gh api",
+    "gh-secret": "gh secret"
+  }
 }
