@@ -29,4 +29,4 @@ jobs:
             Fix the issues mentioned in the review.
 
           claude_args: |
-            --allowed-tools "Bash(git:*),Bash(gh pr:*),Bash(npm test:*)"
+            --allowed-tools "Read,Edit,Glob,Grep,LS,Bash(git:*),Bash(gh pr:*),Bash(npm test:*)"
