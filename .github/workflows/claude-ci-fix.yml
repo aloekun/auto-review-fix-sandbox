@@ -27,7 +27,7 @@ jobs:
 
       - uses: actions/checkout@v4
         with:
-          ref: ${{ github.event.workflow_run.head_sha }}
+          ref: ${{ github.event.workflow_run.head_branch }}
 
       - name: Fix CI
         uses: anthropics/claude-code-action@v1
@@ -44,10 +44,11 @@ jobs:
             Then:
             1. Identify the TypeScript errors
             2. Fix the affected files
-            3. Commit and push the fix
+            3. Verify the fix with: npx --yes tsc --noEmit
+            4. Commit and push the fix
 
           additional_permissions: |
             actions: read
 
           claude_args: |
-            --allowed-tools "Read,Edit,Glob,Grep,LS,Bash(git:*),Bash(gh run:*)"
+            --allowed-tools "Read,Edit,Glob,Grep,LS,Bash(git:*),Bash(gh run:*),Bash(npx:*),Bash(npm:*)"
