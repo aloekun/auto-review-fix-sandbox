@@ -1,5 +1,6 @@
 // sample module
 
+
 export function divide(a: number, b: number) {
   if (b === 0 || !isFinite(b)) {
     throw new Error("Invalid denominator: zero or non-finite");
