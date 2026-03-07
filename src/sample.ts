@@ -1,7 +1,7 @@
 // sample module
 
 // intentional type error for claude-ci-fix.yml testing
-const _ciTestError: number = "this is not a number";
+const _ciTestError: string = "this is not a number";
 
 export function divide(a: number, b: number) {
   if (b === 0 || !isFinite(b)) {
