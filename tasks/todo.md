@@ -105,7 +105,7 @@
 ### Phase 4.4: 結果に応じた対応
 
 - [x] 4.4.1 観察結果を記録
-- [ ] 4.4.2 `claude-ci-fix.yml` に `show_full_output: true` を追加して PR 作成
+- [x] 4.4.2 Claude 実行トレースを CI アーティファクトとしてアップロード（`Upload Claude trace` ステップ追加済み）
 
 ### Phase 4 レビュー
 
