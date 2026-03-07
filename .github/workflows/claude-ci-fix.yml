@@ -1,0 +1,53 @@
+name: Claude CI Fix
+
+on:
+  workflow_run:
+    workflows: ["CI"]
+    types:
+      - completed
+
+jobs:
+  fix:
+    if: ${{ github.event.workflow_run.conclusion == 'failure' && github.event.workflow_run.head_branch != 'main' }}
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: write
+      pull-requests: write
+      actions: read
+      id-token: write
+
+    steps:
+      - name: Debug actor info
+        run: |
+          echo "github.actor=${{ github.actor }}"
+          echo "workflow_run.actor=${{ github.event.workflow_run.actor.login }}"
+          echo "workflow_run.head_branch=${{ github.event.workflow_run.head_branch }}"
+          echo "workflow_run.head_sha=${{ github.event.workflow_run.head_sha }}"
+
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+
+      - name: Fix CI
+        uses: anthropics/claude-code-action@v1
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+
+          prompt: |
+            The CI workflow failed on branch `${{ github.event.workflow_run.head_branch }}`.
+            Analyze the CI logs and fix the failing TypeScript type errors.
+
+            To get CI logs:
+            gh run view ${{ github.event.workflow_run.id }} --log-failed
+
+            Then:
+            1. Identify the TypeScript errors
+            2. Fix the affected files
+            3. Commit and push the fix
+
+          additional_permissions: |
+            actions: read
+
+          claude_args: |
+            --allowed-tools "Read,Edit,Glob,Grep,LS,Bash(git:*),Bash(gh run:*)"

@@ -20,6 +20,7 @@
     "gh-pr": "gh pr",
     "gh-run": "gh run",
     "gh-api": "gh api",
-    "gh-secret": "gh secret"
+    "gh-secret": "gh secret",
+    "typecheck": "tsc --noEmit"
   }
 }
