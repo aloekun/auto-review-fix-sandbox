@@ -1,7 +1,5 @@
 // sample module
 
-// intentional type error for claude-ci-fix.yml scenario B test (--debug, --json jobs)
-const _scenarioBError: number = "not a number";
 
 export function divide(a: number, b: number) {
   if (b === 0 || !isFinite(b)) {
