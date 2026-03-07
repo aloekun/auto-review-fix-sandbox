@@ -139,7 +139,83 @@ reviews:
 
 ---
 
-## 5. トラブルシューティングで得た教訓
+## 5. workflow_run イベントと claude-ci-fix.yml の実験結果
+
+### github.actor の挙動（実測値）
+
+| シナリオ | github.actor | workflow_run.actor.login |
+|---------|-------------|--------------------------|
+| 人間が push → CI 失敗 → claude-ci-fix 発火 | `aloekun`（人間） | `aloekun` |
+| Claude が push → CI 成功 → claude-ci-fix SKIPPED | `claude[bot]` | `claude[bot]` |
+
+**確認方法:** SKIPPED ランは Debug ステップが実行されないため、GitHub API で確認:
+```
+gh api "repos/OWNER/REPO/actions/runs/RUN_ID" --jq "{actor: .actor.login, triggering_actor: .triggering_actor.login}"
+```
+
+### claude-ci-fix.yml の再帰実行リスク
+
+- Claude の修正で CI が**成功**する場合 → claude-ci-fix.yml は `conclusion != 'failure'` で SKIPPED → 無限ループなし
+- Claude の修正で CI が**失敗**する場合 → claude-ci-fix.yml が発火、`github.actor = claude[bot]`
+  - `allowed_bots` の設定がないと Claude Code Action はBot をデフォルト拒否
+  - `allowed_bots: "claude[bot]"` を追加すれば再実行を許可できる（ただし無限ループリスクあり）
+
+### Claude 実行の検査方法
+
+Claude の実行内容を詳しく調べる方法は 2 つある。
+
+#### 方法 1: GitHub Actions ジョブログ（`show_full_output: "true"`）
+
+```yaml
+- uses: anthropics/claude-code-action@v1
+  with:
+    show_full_output: "true"  # ジョブログにツール呼び出しの全文を出力する
+```
+
+- ジョブ実行中にリアルタイムで確認できる
+- `show_full_output: "false"`（デフォルト）のときは `permission_denials_count` などの集計値のみ表示
+- `claude_args: --debug` は Claude CLI の内部ログを有効化するが、`show_full_output: "true"` なしでは GitHub Actions に出力されない
+
+**`--debug` フラグと `show_full_output` の違い:**
+| 設定 | 効果 |
+|-----|------|
+| `claude_args: --debug` | Claude CLI のデバッグモード（内部ログ）。`show_full_output` なしでは GitHub Actions に出力されない |
+| `show_full_output: "true"` | Claude Code Action の実行ログを GitHub Actions に全文出力。これがないと `permission_denials_count` だけが見える |
+
+#### 方法 2: 実行トレースアーティファクト（`Upload Claude trace` ステップ）
+
+```yaml
+- name: Upload Claude trace
+  if: always()
+  uses: actions/upload-artifact@v4
+  with:
+    name: claude-execution
+    path: ${{ steps.claude.outputs.execution_file }}
+```
+
+- `execution_file` にはツール呼び出しの完全なシーケンス、`permission_denials_count` などの詳細が含まれる
+- `show_full_output: false` のときでもポストランで取得可能
+- GitHub Actions の「Actions」タブ → 対象のワークフロー実行 → Artifacts セクションからダウンロードできる
+
+**どちらを使うか:**
+| 用途 | 推奨方法 |
+|------|---------|
+| 実行中にリアルタイムで確認したい | `show_full_output: "true"` |
+| 実行後に詳細を深く分析したい | トレースアーティファクト |
+| ログコストを抑えつつ詳細を保存したい | トレースアーティファクト（`show_full_output` 不要） |
+
+### コスト実績（claude-ci-fix.yml シナリオ B）
+
+| 実行 | ターン | 拒否 | コスト | 結果 |
+|------|--------|------|--------|------|
+| Run #1（22803499050） | 24 | 7 | $0.42 | 成功（修正コミットあり） |
+| Run #2（22803505035） | 20 | 6 | $0.34 | 成功（修正不要と判断） |
+
+拒否されたツールの詳細はトレースアーティファクトから確認可能。
+
+---
+
+## 6. トラブルシューティングで得た教訓
 
 ### 試行錯誤は高コスト
 
