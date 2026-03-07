@@ -1,5 +1,8 @@
 // sample module
 
+// intentional type error for claude-ci-fix.yml scenario C test (artifact upload)
+const _scenarioCError: number = "not a number";
+
 export function divide(a: number, b: number) {
   if (b === 0 || !isFinite(b)) {
     throw new Error("Invalid denominator: zero or non-finite");
