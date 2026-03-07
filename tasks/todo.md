@@ -64,6 +64,39 @@
 
 **次のアクション:** パーミッション拒否の原因を調査し、Claude Code Action が修正をコミット・プッシュできるようにする。
 
-## Phase 4-5
+## Phase 4: claude-ci-fix.yml テスト
+
+### Phase 4.1: インフラ整備（main マージ）
+
+- [ ] 4.1.1 `.github/workflows/ci.yml` 作成（TypeScript CI）
+- [ ] 4.1.2 `.github/workflows/claude-ci-fix.yml` 作成（workflow_samples からコピー＋改善）
+- [ ] 4.1.3 `package.json` に `typecheck` スクリプト追加
+- [ ] 4.1.4 PR 作成 → main にマージ
+
+### Phase 4.2: シナリオ A（基本動作確認）
+
+- [ ] 4.2.1 テストブランチ作成（`test/ci-fix-scenario-a`）
+- [ ] 4.2.2 `src/sample.ts` に TypeScript エラーを追加してプッシュ
+- [ ] 4.2.3 PR 作成 → CI 失敗確認
+- [ ] 4.2.4 `claude-ci-fix.yml` の発火確認
+- [ ] 4.2.5 デバッグログで `github.actor` / `workflow_run.actor.login` を記録
+- [ ] 4.2.6 Claude Code Action が修正をプッシュするか確認
+
+### Phase 4.3: シナリオ B（Claude push 後の挙動確認）
+
+- [ ] 4.3.1 Claude の修正コミット後に走った CI のログを確認
+- [ ] 4.3.2 `claude-ci-fix.yml` が再発火したか確認
+- [ ] 4.3.3 `workflow_run.actor.login` の値を記録（`claude[bot]` か否か）
+- [ ] 4.3.4 `allowed_bots` なしで Claude が実行されるか確認
+
+### Phase 4.4: 結果に応じた対応
+
+- [ ] 4.4.1 観察結果を記録し、`claude-ci-fix.yml` を必要に応じて更新
+
+### Phase 4 レビュー
+
+（テスト実施後に記録）
+
+## Phase 5
 
 docs/tasks.md を参照。

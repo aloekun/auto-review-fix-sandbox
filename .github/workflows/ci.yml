@@ -1,0 +1,16 @@
+name: CI
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+
+jobs:
+  typecheck:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install TypeScript
+        run: npm install --no-save typescript @types/node
+      - name: Type check
+        run: npx tsc --noEmit
