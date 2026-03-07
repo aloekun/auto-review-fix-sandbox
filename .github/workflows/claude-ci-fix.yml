@@ -36,13 +36,15 @@ jobs:
 
           prompt: |
             The CI workflow failed on branch `${{ github.event.workflow_run.head_branch }}`.
-            Analyze the CI logs and fix the failing TypeScript type errors.
 
-            To get CI logs:
+            Step 1 - Identify which job failed:
+            gh run view ${{ github.event.workflow_run.id }} --json jobs
+
+            Step 2 - Get the failure logs:
             gh run view ${{ github.event.workflow_run.id }} --log-failed
 
-            Then:
-            1. Identify the TypeScript errors
+            Step 3 - Fix and verify:
+            1. Identify the TypeScript errors from the logs
             2. Fix the affected files
             3. Verify the fix with: npx --yes tsc --noEmit
             4. Commit and push the fix
@@ -51,4 +53,4 @@ jobs:
             actions: read
 
           claude_args: |
-            --allowed-tools "Read,Edit,Glob,Grep,LS,Bash(git:*),Bash(gh run:*),Bash(npx:*),Bash(npm:*)"
+            --debug --allowed-tools "Read,Edit,Glob,Grep,LS,Bash(git:*),Bash(gh run:*),Bash(gh pr:*),Bash(npx:*),Bash(npm:*)"
