@@ -4,6 +4,29 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## プロジェクト概要
 
+`.github/workflows/fix-review.yml` を使って「CodeRabbit レビュー → Claude Code Action 自動修正」のフローを実験・改善するサンドボックス。
+テストで培ったワークフローは `.github/workflow_samples/` に蓄積し、将来の本番プロジェクトへの流用を目標とする。
+
+### ファイルの役割
+
+| ファイル | 役割 |
+|---------|------|
+| `.github/workflows/fix-review.yml` | 動作中のワークフロー。動作調整が必要なときのみ変更する |
+| `.github/workflow_samples/` | 十分テスト済みのワークフローを蓄積する場所。ユーザーが指示したときのみ更新 |
+| `src/sample.ts` | レビューをトリガーするためのサンプルコード。PR 動作をテストする際はこのファイルを変更する |
+
+### 制約: OAuth ワークフロー一致要件
+
+`claude_code_oauth_token`（OAuth 認証）を使う場合、**PR ブランチの `fix-review.yml` が `main` と完全一致していないとワークフローが動作しない**（GitHub のセキュリティ制約）。
+
+このため、`fix-review.yml` を変更する際は次の順序を守る:
+
+1. `fix-review.yml` を変更して `main` にマージ
+2. `main` からテスト用ブランチ（`test/説明`）を切る
+3. `src/sample.ts` を変更してプッシュ → CodeRabbit レビュー → Claude Code Action 発火
+
+**PR 動作テスト目的で `fix-review.yml` を変更してはならない。**
+
 ## コマンド
 
 Bash コマンドは `pnpm` スクリプト経由で実行する（許可管理の簡素化のため）。`jj` や `gh` を直接実行せず、対応する `pnpm` スクリプトを使うこと。
@@ -46,15 +69,18 @@ pnpm jj-fetch                               # fetch
 pnpm gh-pr create --base develop ...        # PR 作成 (gh CLI 使用)
 ```
 
-**注意**: 作業開始時は必ず `pnpm jj-new develop` で空の変更を作成してから作業する。develop ブックマーク上で直接作業するとブックマーク競合の原因になる。
+**注意**: 作業開始時は必ず `pnpm jj-new main` で空の変更を作成してから作業する。
 
 詳細は [ai/rules/VCS_JUJUTSU.md](ai/rules/VCS_JUJUTSU.md) を参照。
 
 ## ブランチ・コミット規約
 
-- ブランチ: `develop` から切る。命名: `<type>/<issue番号>-<kebab-case>`
+- ブランチ: `main` から切る（`develop` は使わない）
+- 命名:
+  - ワークフロー変更: `feat/説明` または `fix/説明`
+  - レビュー動作テスト: `test/説明`
 - コミット: Conventional Commits (`feat`, `fix`, `refactor`, `docs`, `test`, `chore`)
-- PR は `develop` に向けて作成。詳細は [ai/rules/GIT_WORKFLOW.md](ai/rules/GIT_WORKFLOW.md) を参照
+- PR は `main` に向けて作成
 
 ---
 
@@ -100,7 +126,7 @@ pnpm gh-pr create --base develop ...        # PR 作成 (gh CLI 使用)
 品質チェック（テスト・lint・typecheck）が全てパスしたら、以下を **ユーザーの指示を待たずに** 実行する:
 1. `tasks/todo.md` にレビューセクションを記録する
 2. `jj new` で新しい変更を作成し、コミット・プッシュする
-3. PR を作成する（`gh pr create --base develop`）
+3. PR を作成する（`pnpm gh-pr create --base main`）
 4. PR URL をユーザーに報告する
 
 ---
