@@ -162,3 +162,56 @@ Claude Code Action の 1 回の実行は $0.5〜$1.5（API 従量課金時）。
 ### ワークフローの変更は main 先行
 
 `pull_request_review` イベントは main のワークフローを使うため、PR ブランチだけ変更しても反映されない。OAuth の OIDC 検証でもワークフロー一致が必要。
+
+---
+
+## 6. `workflow_run` イベントと `claude-ci-fix.yml` の知見
+
+### `github.actor` vs `workflow_run.actor.login`
+
+`workflow_run` トリガーでは 2 種類のアクター情報が取れる:
+
+| コンテキスト変数 | 人間 push 時の値 | 意味 |
+|----------------|----------------|------|
+| `github.actor` | `aloekun`（pushした人） | workflow_run の場合はCIを発火させたpush者 |
+| `github.event.workflow_run.actor.login` | `aloekun`（同上） | CI を発火させたcommitのpush者 |
+
+> 実測: 両方とも同じ値になった（PR #7 テスト結果）
+
+### `allowed_bots` の要否（未解決・部分検証）
+
+- **人間 push → CI fail → claude-ci-fix.yml 発火**: `allowed_bots` なしで Claude が動作 ✓
+- **claude[bot] push → CI fail → claude-ci-fix.yml 発火**: **未検証**
+  - Claude の fix が CI を PASS させたため、failure ケースが自然発生しなかった
+  - `claude-ci-fix.yml` は `conclusion == 'failure'` の場合のみ実行するため、Claude の修正後は SKIPPED になった（正常動作）
+
+### `workflow_run` でのチェックアウト注意点
+
+```yaml
+# NG: detached HEAD になり git push が失敗しやすい
+- uses: actions/checkout@v4
+  with:
+    ref: ${{ github.event.workflow_run.head_sha }}
+
+# OK: ブランチとして checkout、git push が正常に動作
+- uses: actions/checkout@v4
+  with:
+    ref: ${{ github.event.workflow_run.head_branch }}
+```
+
+### `claude-ci-fix.yml` の推奨ツール設定
+
+```yaml
+claude_args: |
+  --allowed-tools "Read,Edit,Glob,Grep,LS,Bash(git:*),Bash(gh run:*),Bash(npx:*),Bash(npm:*)"
+```
+
+- `Bash(npx:*)`: `npx tsc --noEmit` で修正検証に必要
+- `Bash(npm:*)`: パッケージインストールに必要（CI環境でnode_modules未キャッシュの場合）
+
+### permission_denials_count について
+
+- Claude Code Action が内部的にブロックしたツール呼び出しのカウント
+- `git push` の認証失敗などは含まれない（別の bash 実行失敗として扱われる）
+- 7回の permission_denials でも Claude は実際に fix を push できた
+  - 許可されていないツール（例: `gh pr`、`WebFetch`等）は単純にスキップされ、コア機能（Read/Edit/git）は正常動作
