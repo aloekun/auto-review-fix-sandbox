@@ -59,17 +59,19 @@ export function findUser(db: any, id: string) {
   return db.query("SELECT * FROM users WHERE id = " + id);
 }
 
-export function executeCommand(cmd: string) {
-  const { execSync } = require("child_process");
-  return execSync(cmd).toString();
+export function executeCommand(program: string, args: string[]) {
+  const { execFileSync } = require("child_process");
+  return execFileSync(program, args).toString();
 }
 
 export function renderTemplate(template: string, data: any) {
-  return eval("`" + template + "`");
+  return template.replace(/\$\{([a-zA-Z0-9_.]+)\}/g, (_, key) => {
+    const value = key.split(".").reduce((obj: any, k: string) => obj?.[k], data);
+    return value !== undefined ? String(value) : "";
+  });
 }
 
 export function logSensitiveData(user: any) {
-  console.log("User data:", JSON.stringify(user));
-  console.log("Password:", user.password);
-  console.log("Token:", user.authToken);
+  const sanitized = { ...user, password: "[REDACTED]", authToken: "[REDACTED]" };
+  console.log("User data:", JSON.stringify(sanitized));
 }
