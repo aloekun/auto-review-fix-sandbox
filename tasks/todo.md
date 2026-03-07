@@ -66,36 +66,54 @@
 
 ## Phase 4: claude-ci-fix.yml テスト
 
-### Phase 4.1: インフラ整備（main マージ）
+### Phase 4.1: インフラ整備（main マージ）→ PR #6
 
-- [ ] 4.1.1 `.github/workflows/ci.yml` 作成（TypeScript CI）
-- [ ] 4.1.2 `.github/workflows/claude-ci-fix.yml` 作成（workflow_samples からコピー＋改善）
-- [ ] 4.1.3 `package.json` に `typecheck` スクリプト追加
-- [ ] 4.1.4 PR 作成 → main にマージ
+- [x] 4.1.1 `.github/workflows/ci.yml` 作成（TypeScript CI）
+- [x] 4.1.2 `.github/workflows/claude-ci-fix.yml` 作成（workflow_samples からコピー＋改善）
+- [x] 4.1.3 `package.json` に `typecheck` スクリプト追加
+- [x] 4.1.4 PR 作成 → main にマージ（PR #6, #8, #10 で改善含む）
 
-### Phase 4.2: シナリオ A（基本動作確認）
+### Phase 4.2: シナリオ A（基本動作確認）→ PR #7
 
-- [ ] 4.2.1 テストブランチ作成（`test/ci-fix-scenario-a`）
-- [ ] 4.2.2 `src/sample.ts` に TypeScript エラーを追加してプッシュ
-- [ ] 4.2.3 PR 作成 → CI 失敗確認
-- [ ] 4.2.4 `claude-ci-fix.yml` の発火確認
-- [ ] 4.2.5 デバッグログで `github.actor` / `workflow_run.actor.login` を記録
-- [ ] 4.2.6 Claude Code Action が修正をプッシュするか確認
+- [x] 4.2.1 テストブランチ作成（`test/ci-fix-scenario-a`）
+- [x] 4.2.2 `src/sample.ts` に TypeScript エラーを追加してプッシュ
+- [x] 4.2.3 PR 作成 → CI 失敗確認
+- [x] 4.2.4 `claude-ci-fix.yml` の発火確認（発火済み）
+- [x] 4.2.5 デバッグログで `github.actor` / `workflow_run.actor.login` を記録 → `aloekun`
+- [x] 4.2.6 Claude Code Action が修正をプッシュするか確認 → **成功**（3回目の実行で成功）
 
-### Phase 4.3: シナリオ B（Claude push 後の挙動確認）
+### Phase 4.3: シナリオ B（Claude push 後の挙動確認）→ PR #11
 
-- [ ] 4.3.1 Claude の修正コミット後に走った CI のログを確認
-- [ ] 4.3.2 `claude-ci-fix.yml` が再発火したか確認
-- [ ] 4.3.3 `workflow_run.actor.login` の値を記録（`claude[bot]` か否か）
-- [ ] 4.3.4 `allowed_bots` なしで Claude が実行されるか確認
+- [x] 4.3.1 Claude の修正コミット後に走った CI を確認 → CI success（22803538740, 22803539040）
+- [x] 4.3.2 `claude-ci-fix.yml` が再発火したか確認 → **SKIPPED**（conclusion=success のため）
+- [x] 4.3.3 `workflow_run.actor.login` の値を記録 → **`claude[bot]`**（GitHub API で確認）
+- [x] 4.3.4 `allowed_bots` なしで Claude が実行されるか確認 → N/A（SKIPPED のため実行なし）
+
+**シナリオ B 実行結果:**
+
+| 項目 | 結果 |
+|------|------|
+| claude-ci-fix.yml 発火（aloekun push） | OK × 2（22803499050, 22803505035） |
+| Claude 修正コミット | OK（`fix: remove intentional TypeScript error for scenario B CI test`） |
+| 修正後 CI | SUCCESS（22803538740, 22803539040） |
+| claude-ci-fix.yml 再発火 | SKIPPED × 2（conclusion=success のため） |
+| SKIPPED ランの actor | **`claude[bot]`**（GitHub API `actor.login` で確認） |
+| permission_denials_count | Run #1: 7, Run #2: 6 |
+| --debug フラグ効果 | `show_full_output: false` のため詳細不明 → `show_full_output: true` が必要 |
+| 無限ループ | **なし**（CI success → SKIPPED） |
 
 ### Phase 4.4: 結果に応じた対応
 
-- [ ] 4.4.1 観察結果を記録し、`claude-ci-fix.yml` を必要に応じて更新
+- [x] 4.4.1 観察結果を記録
+- [ ] 4.4.2 `claude-ci-fix.yml` に `show_full_output: true` を追加して PR 作成
 
 ### Phase 4 レビュー
 
-（テスト実施後に記録）
+**主要な知見:**
+1. Claude push 後の `claude-ci-fix.yml` ランの `actor = claude[bot]` を GitHub API で確認
+2. Claude の修正で CI が成功する場合、claude-ci-fix.yml は SKIPPED → 無限ループなし
+3. Claude の修正で CI が失敗する場合、`allowed_bots: "claude[bot]"` がないと Claude は実行されない（未実験）
+4. `--debug` フラグだけでは不十分 → `show_full_output: true` でツール呼び出し詳細を可視化できる
 
 ## Phase 5
 

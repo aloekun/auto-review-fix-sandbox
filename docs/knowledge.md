@@ -139,7 +139,56 @@ reviews:
 
 ---
 
-## 5. トラブルシューティングで得た教訓
+## 5. workflow_run イベントと claude-ci-fix.yml の実験結果
+
+### github.actor の挙動（実測値）
+
+| シナリオ | github.actor | workflow_run.actor.login |
+|---------|-------------|--------------------------|
+| 人間が push → CI 失敗 → claude-ci-fix 発火 | `aloekun`（人間） | `aloekun` |
+| Claude が push → CI 成功 → claude-ci-fix SKIPPED | `claude[bot]` | `claude[bot]` |
+
+**確認方法:** SKIPPED ランは Debug ステップが実行されないため、GitHub API で確認:
+```
+gh api "repos/OWNER/REPO/actions/runs/RUN_ID" --jq "{actor: .actor.login, triggering_actor: .triggering_actor.login}"
+```
+
+### claude-ci-fix.yml の再帰実行リスク
+
+- Claude の修正で CI が**成功**する場合 → claude-ci-fix.yml は `conclusion != 'failure'` で SKIPPED → 無限ループなし
+- Claude の修正で CI が**失敗**する場合 → claude-ci-fix.yml が発火、`github.actor = claude[bot]`
+  - `allowed_bots` の設定がないと Claude Code Action はBot をデフォルト拒否
+  - `allowed_bots: "claude[bot]"` を追加すれば再実行を許可できる（ただし無限ループリスクあり）
+
+### show_full_output: true の重要性
+
+`--debug` フラグを `claude_args` に追加しても、GitHub Actions の出力は制限される。
+詳細なツール呼び出しログ（どのツールが何回呼ばれたか、拒否されたか）を見るには:
+
+```yaml
+- uses: anthropics/claude-code-action@v1
+  with:
+    show_full_output: "true"  # これがないと debug ログが GitHub Actions に出力されない
+```
+
+**`--debug` フラグと `show_full_output` の違い:**
+| 設定 | 効果 |
+|-----|------|
+| `claude_args: --debug` | Claude CLI のデバッグモード（内部ログ）。`show_full_output` なしでは GitHub Actions に出力されない |
+| `show_full_output: "true"` | Claude Code Action の実行ログを GitHub Actions に全文出力。これがないと `permission_denials_count` だけが見える |
+
+### コスト実績（claude-ci-fix.yml シナリオ B）
+
+| 実行 | ターン | 拒否 | コスト | 結果 |
+|------|--------|------|--------|------|
+| Run #1（22803499050） | 24 | 7 | $0.42 | 成功（修正コミットあり） |
+| Run #2（22803505035） | 20 | 6 | $0.34 | 成功（修正不要と判断） |
+
+拒否されたツールの詳細は `show_full_output: false` のため不明。
+
+---
+
+## 6. トラブルシューティングで得た教訓
 
 ### 試行錯誤は高コスト
 
