@@ -58,3 +58,18 @@ export function buildHtml(userInput: string): string {
 export function findUser(db: any, id: string) {
   return db.query("SELECT * FROM users WHERE id = " + id);
 }
+
+export function executeCommand(cmd: string) {
+  const { execSync } = require("child_process");
+  return execSync(cmd).toString();
+}
+
+export function renderTemplate(template: string, data: any) {
+  return eval("`" + template + "`");
+}
+
+export function logSensitiveData(user: any) {
+  console.log("User data:", JSON.stringify(user));
+  console.log("Password:", user.password);
+  console.log("Token:", user.authToken);
+}
