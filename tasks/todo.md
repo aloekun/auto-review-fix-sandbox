@@ -68,34 +68,64 @@
 
 ### Phase 4.1: インフラ整備（main マージ）
 
-- [ ] 4.1.1 `.github/workflows/ci.yml` 作成（TypeScript CI）
-- [ ] 4.1.2 `.github/workflows/claude-ci-fix.yml` 作成（workflow_samples からコピー＋改善）
-- [ ] 4.1.3 `package.json` に `typecheck` スクリプト追加
-- [ ] 4.1.4 PR 作成 → main にマージ
+- [x] 4.1.1 `.github/workflows/ci.yml` 作成（TypeScript CI）
+- [x] 4.1.2 `.github/workflows/claude-ci-fix.yml` 作成（workflow_samples からコピー＋改善）
+- [x] 4.1.3 `package.json` に `typecheck` スクリプト追加
+- [x] 4.1.4 PR 作成 → main にマージ (PR #6)
+- [x] 4.1.5 `ref: head_sha` → `ref: head_branch` 修正 + `Bash(npx:*),Bash(npm:*)` 追加 (PR #8)
 
 ### Phase 4.2: シナリオ A（基本動作確認）
 
-- [ ] 4.2.1 テストブランチ作成（`test/ci-fix-scenario-a`）
-- [ ] 4.2.2 `src/sample.ts` に TypeScript エラーを追加してプッシュ
-- [ ] 4.2.3 PR 作成 → CI 失敗確認
-- [ ] 4.2.4 `claude-ci-fix.yml` の発火確認
-- [ ] 4.2.5 デバッグログで `github.actor` / `workflow_run.actor.login` を記録
-- [ ] 4.2.6 Claude Code Action が修正をプッシュするか確認
+- [x] 4.2.1 テストブランチ作成（`test/ci-fix-scenario-a`）
+- [x] 4.2.2 `src/sample.ts` に TypeScript エラーを追加してプッシュ
+- [x] 4.2.3 PR 作成 → CI 失敗確認 (PR #7)
+- [x] 4.2.4 `claude-ci-fix.yml` の発火確認 → **発火確認** (runs 22799210447, 22799216563)
+- [x] 4.2.5 デバッグログで `github.actor` / `workflow_run.actor.login` を記録
+  - 人間 push 時: `github.actor=aloekun`, `workflow_run.actor=aloekun`
+- [x] 4.2.6 Claude Code Action が修正をプッシュするか確認 → **成功** (12 turns, $0.20)
 
 ### Phase 4.3: シナリオ B（Claude push 後の挙動確認）
 
-- [ ] 4.3.1 Claude の修正コミット後に走った CI のログを確認
-- [ ] 4.3.2 `claude-ci-fix.yml` が再発火したか確認
+- [x] 4.3.1 Claude の修正コミット後に走った CI のログを確認
+  - Claude fix: `fix(sample): correct type annotation for _ciTestError` (by claude[bot])
+  - CI: **SUCCESS** (12:44:20-35 UTC)
+- [x] 4.3.2 `claude-ci-fix.yml` が再発火したか確認
+  - 再発火: **YES** (runs 22799284243, 22799285352)
+  - 結果: **SKIPPED** (CI conclusion == 'success' のため)
 - [ ] 4.3.3 `workflow_run.actor.login` の値を記録（`claude[bot]` か否か）
-- [ ] 4.3.4 `allowed_bots` なしで Claude が実行されるか確認
+  - Claude push → CI SUCCESS → SKIPPED のため、Claude push 後の`workflow_run.actor` は未観察
+  - Scenario B 完全テスト: 「Claude push → CI FAIL → claude-ci-fix 発火 → Claudeが実行されるか？」は未実施
+- [ ] 4.3.4 `allowed_bots` なしで Claude が実行されるか確認 → **未検証**（Scenario B 未実施のため）
 
 ### Phase 4.4: 結果に応じた対応
 
-- [ ] 4.4.1 観察結果を記録し、`claude-ci-fix.yml` を必要に応じて更新
+- [x] 4.4.1 `claude-ci-fix.yml` の修正点を main にマージ済み (PR #8)
 
 ### Phase 4 レビュー
 
-（テスト実施後に記録）
+**シナリオ A の結果:**
+
+| 観察項目 | 結果 |
+|---------|------|
+| `claude-ci-fix.yml` 発火 | OK（CI failure で発火） |
+| デバッグログ `github.actor` | `aloekun`（人間のpushの場合） |
+| デバッグログ `workflow_run.actor` | `aloekun`（人間のpushの場合） |
+| Claude Code Action の実行 | OK（12ターン, $0.20, 7 permission denials） |
+| Claude の修正 push | **OK**（`fix(sample): correct type annotation for _ciTestError`） |
+| CI after Claude fix | **SUCCESS** |
+| Claude push 後の claude-ci-fix 発火 | SKIPPED（CI が success のため正常） |
+
+**シナリオ B（未実施）: allowed_bots 要否**
+
+Claude push → CI fail → `claude-ci-fix.yml` 発火 → `claude-code-action` が実行されるか？
+- 現状: Claude の fix が CI を PASS させたため、failure ケースが発生しなかった
+- `allowed_bots: "claude[bot]"` の要否は **未検証**
+- 検証には「Claude の fix が CI を fail させる」シナリオが必要
+
+**インフラ修正（PR #8）の教訓:**
+
+初回実行での 7 permission denials は npx/npm ツール不足と detached HEAD が原因と推定。
+ただし、修正前でも Claude は実際に fix をプッシュできていたため、影響は限定的だった。
 
 ## Phase 5
 
