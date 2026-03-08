@@ -99,5 +99,5 @@ def post_pr_comment(owner: str, repo: str, pr_number: int, body: str) -> None:
     subprocess.run(
         ["gh", "pr", "comment", str(pr_number),
          "--repo", f"{owner}/{repo}", "--body", body],
-        check=True
+        check=True, encoding="utf-8"
     )

@@ -21,7 +21,16 @@ def run_claude(prompt: str, workspace_dir: Path) -> int:
 
     env = os.environ.copy()
     env.pop("CLAUDECODE", None)
-    env.setdefault("CLAUDE_CODE_GIT_BASH_PATH", r"D:\Git\bin\bash.exe")
+    # Only set Git Bash path on Windows if not already configured
+    if sys.platform == "win32" and "CLAUDE_CODE_GIT_BASH_PATH" not in env:
+        for candidate in [
+            r"C:\Program Files\Git\bin\bash.exe",
+            r"C:\Program Files (x86)\Git\bin\bash.exe",
+            r"D:\Git\bin\bash.exe",
+        ]:
+            if Path(candidate).exists():
+                env["CLAUDE_CODE_GIT_BASH_PATH"] = candidate
+                break
 
     result = subprocess.run(
         ["claude", "-p", prompt, "--dangerously-skip-permissions"],
