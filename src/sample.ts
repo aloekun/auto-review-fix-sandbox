@@ -58,3 +58,20 @@ export function buildHtml(userInput: string): string {
 export function findUser(db: any, id: string) {
   return db.query("SELECT * FROM users WHERE id = " + id);
 }
+
+// Phase 5 test: intentional issues for daemon validation
+export function processItems(items: any[]) {
+  var result = [];
+  for (var i = 0; i < items.length; i++) {
+    result.push(items[i].value);
+  }
+  return result;
+}
+
+export function getUserAge(user: any): number {
+  return parseInt(user.age);
+}
+
+export function formatName(first: string | null, last: string | null): string {
+  return first!.trim() + " " + last!.trim();
+}
