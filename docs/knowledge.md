@@ -182,36 +182,83 @@ Claude の実行内容を詳しく調べる方法は 2 つある。
 | `claude_args: --debug` | Claude CLI のデバッグモード（内部ログ）。`show_full_output` なしでは GitHub Actions に出力されない |
 | `show_full_output: "true"` | Claude Code Action の実行ログを GitHub Actions に全文出力。これがないと `permission_denials_count` だけが見える |
 
-#### 方法 2: 実行トレースアーティファクト（`Upload Claude trace` ステップ）
+#### 方法 2: 実行トレースアーティファクト（推奨）
+
+**ワークフロー設定:**
 
 ```yaml
+- name: Fix CI
+  id: claude                          # id が必須（outputs 参照のため）
+  uses: anthropics/claude-code-action@v1
+  with:
+    ...
+
 - name: Upload Claude trace
-  if: always()
+  if: always()                        # Fix CI が失敗しても必ず実行
   uses: actions/upload-artifact@v4
   with:
     name: claude-execution
     path: ${{ steps.claude.outputs.execution_file }}
 ```
 
-- `execution_file` にはツール呼び出しの完全なシーケンス、`permission_denials_count` などの詳細が含まれる
-- `show_full_output: false` のときでもポストランで取得可能
-- GitHub Actions の「Actions」タブ → 対象のワークフロー実行 → Artifacts セクションからダウンロードできる
+**取得コマンド:**
+
+```bash
+# ダウンロード（カレントディレクトリに claude-execution-output.json が作成される）
+gh run download RUN_ID -n claude-execution -D .
+
+# サマリーと拒否コマンドを確認
+python3 -c "
+import json, sys; sys.stdout.reconfigure(encoding='utf-8')
+data = json.load(open('claude-execution-output.json', encoding='utf-8'))
+for item in data:
+    if item.get('type') == 'result':
+        print('num_turns:', item.get('num_turns'))
+        print('total_cost_usd:', item.get('total_cost_usd'))
+        for d in item.get('permission_denials', []):
+            print('DENIED:', d['tool_input'].get('command','')[:120])
+        break
+"
+```
+
+**JSON 構造:**
+- トップレベルはイベントの配列（`type: system/user/assistant/tool_result/result`）
+- `type: result` の要素に含まれる主要フィールド:
+  - `num_turns`: 総ターン数
+  - `total_cost_usd`: 合計コスト
+  - `permission_denials`: 拒否されたツール呼び出しの配列（`tool_name`, `tool_input.command` を含む）
+  - `result`: Claude の最終回答テキスト
 
 **どちらを使うか:**
 | 用途 | 推奨方法 |
 |------|---------|
 | 実行中にリアルタイムで確認したい | `show_full_output: "true"` |
-| 実行後に詳細を深く分析したい | トレースアーティファクト |
+| 実行後に詳細を深く分析したい | トレースアーティファクト（推奨） |
 | ログコストを抑えつつ詳細を保存したい | トレースアーティファクト（`show_full_output` 不要） |
 
-### コスト実績（claude-ci-fix.yml シナリオ B）
+### CLAUDE.md が CI 環境の permission denials を引き起こす問題
 
-| 実行 | ターン | 拒否 | コスト | 結果 |
-|------|--------|------|--------|------|
-| Run #1（22803499050） | 24 | 7 | $0.42 | 成功（修正コミットあり） |
-| Run #2（22803505035） | 20 | 6 | $0.34 | 成功（修正不要と判断） |
+**症状:** Claude Code Action がプロジェクトルートの `CLAUDE.md` を読み込み、「pnpm スクリプトを使うこと」という指示に従って `pnpm gh-run view ...` や `pnpm jj-describe` を実行しようとする。しかし `allowed-tools` には `Bash(pnpm:*)` が含まれておらず、拒否される。
 
-拒否されたツールの詳細はトレースアーティファクトから確認可能。
+**実測データ（Scenario C、artifact upload テスト）:**
+
+| Run | ターン | 拒否 | コスト | 拒否されたコマンド（主要なもの） |
+|-----|--------|------|--------|--------------------------------|
+| #1 | 24 | 8 | $0.45 | `pnpm gh-run view`×3, `pnpm jj-diff`, `pnpm jj-describe`×2, `pnpm jj-status`×2 |
+| #2 | 20 | 4 | $0.40 | `pnpm gh-run view`×2, `pnpm jj-describe`, `pnpm jj-status` |
+
+**根本原因:** jj（Jujutsu VCS）は CI ランナーに未インストール。`Bash(pnpm:*)` を許可しても `pnpm jj-*` は実行エラーになる。
+
+**解決策:** プロンプトに以下を明記する:
+```
+IMPORTANT: This is a CI environment. Do NOT use pnpm or jj commands.
+Use git and gh directly for all VCS and GitHub operations.
+```
+
+コミット・プッシュは以下の形式に統一:
+```bash
+git add -A && git commit -m "fix: <description>" && git push
+```
 
 ---
 

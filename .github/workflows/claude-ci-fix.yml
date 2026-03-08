@@ -38,6 +38,9 @@ jobs:
           prompt: |
             The CI workflow failed on branch `${{ github.event.workflow_run.head_branch }}`.
 
+            IMPORTANT: This is a CI environment. Do NOT use pnpm or jj commands.
+            Use git and gh directly for all VCS and GitHub operations.
+
             Step 1 - Identify which job failed:
             gh run view ${{ github.event.workflow_run.id }} --json jobs
 
@@ -48,7 +51,10 @@ jobs:
             1. Identify the TypeScript errors from the logs
             2. Fix the affected files
             3. Verify the fix with: npx --yes tsc --noEmit
-            4. Commit and push the fix
+            4. Commit and push using git directly:
+               git add -A
+               git commit -m "fix: <description>"
+               git push
 
           additional_permissions: |
             actions: read
