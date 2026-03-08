@@ -31,7 +31,7 @@ def get_open_prs(owner: str, repo: str) -> list[int]:
     result = subprocess.run(
         ["gh", "pr", "list", "--repo", f"{owner}/{repo}",
          "--state", "open", "--json", "number"],
-        capture_output=True, text=True, check=True
+        capture_output=True, text=True, encoding="utf-8", check=True
     )
     items = json.loads(result.stdout)
     return [item["number"] for item in items]
@@ -43,7 +43,7 @@ def get_pr_info(owner: str, repo: str, pr_number: int) -> PRInfo:
         ["gh", "pr", "view", str(pr_number),
          "--repo", f"{owner}/{repo}",
          "--json", "number,headRefName,headRefOid,title,headRepository"],
-        capture_output=True, text=True, check=True
+        capture_output=True, text=True, encoding="utf-8", check=True
     )
     data = json.loads(result.stdout)
     head_repo = data.get("headRepository") or {}
@@ -61,7 +61,7 @@ def get_reviews(owner: str, repo: str, pr_number: int) -> list[Review]:
     """PRのレビュー一覧を取得する。"""
     result = subprocess.run(
         ["gh", "api", f"repos/{owner}/{repo}/pulls/{pr_number}/reviews"],
-        capture_output=True, text=True, check=True
+        capture_output=True, text=True, encoding="utf-8", check=True
     )
     items = json.loads(result.stdout)
     return [
@@ -80,7 +80,7 @@ def get_review_comments(owner: str, repo: str, pr_number: int) -> list[dict]:
     """PRのインラインレビューコメント一覧を取得する。"""
     result = subprocess.run(
         ["gh", "api", f"repos/{owner}/{repo}/pulls/{pr_number}/comments"],
-        capture_output=True, text=True, check=True
+        capture_output=True, text=True, encoding="utf-8", check=True
     )
     return json.loads(result.stdout)
 
@@ -89,7 +89,7 @@ def get_pr_diff(owner: str, repo: str, pr_number: int) -> str:
     """PR の差分を取得する。"""
     result = subprocess.run(
         ["gh", "pr", "diff", str(pr_number), "--repo", f"{owner}/{repo}"],
-        capture_output=True, text=True, check=True
+        capture_output=True, text=True, encoding="utf-8", check=True
     )
     return result.stdout
 
