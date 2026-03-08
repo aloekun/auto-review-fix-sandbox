@@ -6,3 +6,4 @@ Thumbs.db
 .claude/settings.local.json
 tmp/
 claude-execution-output*.json
+ai-review-fixer/state.json

@@ -285,3 +285,65 @@ Claude Code Action の 1 回の実行は $0.5〜$1.5（API 従量課金時）。
 ### ワークフローの変更は main 先行
 
 `pull_request_review` イベントは main のワークフローを使うため、PR ブランチだけ変更しても反映されない。OAuth の OIDC 検証でもワークフロー一致が必要。
+
+---
+
+## 7. Local AI Agent Daemon アーキテクチャ (Phase 5〜)
+
+### 採用背景
+
+GitHub Actions + Claude Code Action (OAuth) 方式の限界:
+
+- Anthropic が第三者による Claude Code OAuth 利用を非公認
+- GH Actions のワークフロー一致要件でイテレーションが遅い
+- API 従量課金の場合、試行錯誤コストが高い
+
+詳細は [docs/adr/001-move-to-local-daemon.md](adr/001-move-to-local-daemon.md) を参照。
+
+### Claude Code CLI の非対話的呼び出し
+
+```bash
+claude -p "<prompt>" --dangerously-skip-permissions
+```
+
+- `-p` / `--print`: 非対話モード。プロンプトを渡して実行後に終了
+- `--dangerously-skip-permissions`: 全ツール使用を自動承認（ローカル自動化向け）
+- `cwd` をワークスペースディレクトリに設定することで、そのプロジェクトのコンテキストで動作
+
+### jj コロケートリポジトリと git の共存
+
+jj がコロケートされたリポジトリでは `.git` ディレクトリが存在する。
+Python の `subprocess.run(["git", ...])` は Claude Code のフックを経由しないため、
+jj の validate-command フックの影響を受けない。
+
+デーモンが専用の `tmp/daemon-workspace/` (git clone) で動作することで:
+- jj の working copy に干渉しない
+- Claude Code も git を自由に使える
+- ローカル Claude Code のフック設定が持ち込まれない
+
+### state.json による処理済み追跡
+
+```json
+{
+  "pr_1": {
+    "fix_attempts": 2,
+    "processed_review_ids": ["111111111", "222222222"]
+  }
+}
+```
+
+同じレビューIDが `processed_review_ids` に含まれていれば再処理しない。
+`fix_attempts` が `max_fix_attempts` (デフォルト 3) 以上なら PR にコメントを投稿して停止。
+
+### デーモンの起動
+
+```bash
+cd ai-review-fixer
+pip install -r requirements.txt   # PyYAML
+bash run_daemon.sh                 # Ctrl+C で停止
+```
+
+一度だけ実行する場合:
+```bash
+python ai-review-fixer/orchestrator.py
+```
