@@ -58,3 +58,27 @@ export function buildHtml(userInput: string): string {
 export function findUser(db: any, id: string) {
   return db.query("SELECT * FROM users WHERE id = " + id);
 }
+
+// Phase 5 test: intentional issues for daemon validation
+export function processItems<T extends { value?: V }, V>(items: T[]): V[] {
+  const result: V[] = [];
+  for (let i = 0; i < items.length; i++) {
+    const item = items[i];
+    if (item != null && item.value !== undefined) {
+      result.push(item.value);
+    }
+  }
+  return result;
+}
+
+export function getUserAge(user: { age: string | number }): number {
+  const parsed = parseInt(String(user.age), 10);
+  if (!Number.isFinite(parsed)) {
+    throw new Error("Invalid age");
+  }
+  return parsed;
+}
+
+export function formatName(first: string | null, last: string | null): string {
+  return (first?.trim() ?? "") + " " + (last?.trim() ?? "");
+}
