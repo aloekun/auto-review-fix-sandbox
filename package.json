@@ -21,6 +21,7 @@
     "gh-run": "gh run",
     "gh-api": "gh api",
     "gh-secret": "gh secret",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "download-artifact": "node scripts/download-claude-artifact.mjs"
   }
 }
