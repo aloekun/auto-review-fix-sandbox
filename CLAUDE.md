@@ -4,28 +4,46 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## プロジェクト概要
 
-`.github/workflows/fix-review.yml` を使って「CodeRabbit レビュー → Claude Code Action 自動修正」のフローを実験・改善するサンドボックス。
-テストで培ったワークフローは `.github/workflow_samples/` に蓄積し、将来の本番プロジェクトへの流用を目標とする。
+「CodeRabbit レビュー → Local AI Agent が自動修正」のフローを実験・改善するサンドボックス。
+
+**アーキテクチャ (現行):**
+
+```
+GitHub PR → CodeRabbit review → PR comments
+                                      │
+                              Local Daemon (orchestrator.py)
+                                      │  ← 60秒ポーリング
+                              Claude Code CLI (-p, --dangerously-skip-permissions)
+                                      │
+                              git commit + push (tmp/daemon-workspace/)
+```
 
 ### ファイルの役割
 
-| ファイル | 役割 |
-|---------|------|
-| `.github/workflows/fix-review.yml` | 動作中のワークフロー。動作調整が必要なときのみ変更する |
-| `.github/workflow_samples/` | 十分テスト済みのワークフローを蓄積する場所。ユーザーが指示したときのみ更新 |
-| `src/sample.ts` | レビューをトリガーするためのサンプルコード。PR 動作をテストする際はこのファイルを変更する |
+| ファイル/ディレクトリ | 役割 |
+|---------------------|------|
+| `ai-review-fixer/` | ローカルデーモンの実装（orchestrator.py 等） |
+| `ai-review-fixer/config.yaml` | リポジトリ設定・ポーリング間隔・最大試行回数 |
+| `tmp/daemon-workspace/` | デーモンが使う専用 git clone（gitignore済み） |
+| `.github/workflow_samples/` | 過去のワークフロー実装（参考・アーカイブ） |
+| `.github/workflows/ci.yml` | TypeScript CI（維持） |
+| `src/sample.ts` | レビューをトリガーするサンプルコード |
+| `docs/adr/` | アーキテクチャ決定記録 |
 
-### 制約: OAuth ワークフロー一致要件
+### デーモンの起動方法
 
-`claude_code_oauth_token`（OAuth 認証）を使う場合、**PR ブランチの `fix-review.yml` が `main` と完全一致していないとワークフローが動作しない**（GitHub のセキュリティ制約）。
+```bash
+cd ai-review-fixer
+pip install -r requirements.txt  # 初回のみ
+bash run_daemon.sh               # Ctrl+C で停止
+```
 
-このため、`fix-review.yml` を変更する際は次の順序を守る:
+または一度だけ実行:
 
-1. `fix-review.yml` を変更して `main` にマージ
-2. `main` からテスト用ブランチ（`test/説明`）を切る
-3. `src/sample.ts` を変更してプッシュ → CodeRabbit レビュー → Claude Code Action 発火
-
-**PR 動作テスト目的で `fix-review.yml` を変更してはならない。**
+```bash
+cd ai-review-fixer
+python orchestrator.py
+```
 
 ## コマンド
 

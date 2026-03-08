@@ -115,6 +115,27 @@
 3. Claude の修正で CI が失敗する場合、`allowed_bots: "claude[bot]"` がないと Claude は実行されない（未実験）
 4. `--debug` フラグだけでは不十分 → `show_full_output: true` でツール呼び出し詳細を可視化できる
 
-## Phase 5
+## Phase 5: Local AI Agent Daemon への移行
 
-docs/tasks.md を参照。
+### Phase 5.1: アーキテクチャ移行（main マージ）
+
+- [x] 5.1.1 ADR 作成 (`docs/adr/001-move-to-local-daemon.md`)
+- [x] 5.1.2 既存 GH Actions ワークフロー削除 (`fix-review.yml`, `claude-ci-fix.yml`)
+- [x] 5.1.3 `.gitignore` 更新 (`ai-review-fixer/state.json` 追加)
+- [x] 5.1.4 `ai-review-fixer/` 実装（config.yaml, requirements.txt, state_manager.py, review_collector.py, prompt_builder.py, claude_runner.py, orchestrator.py, run_daemon.sh）
+- [x] 5.1.5 ドキュメント更新 (CLAUDE.md, docs/design.md, docs/knowledge.md)
+- [ ] 5.1.6 PR 作成 → main にマージ
+
+### Phase 5.2: 動作検証
+
+- [ ] 5.2.1 `pip install -r requirements.txt` で依存インストール確認
+- [ ] 5.2.2 `review_collector.py` 単体動作確認（実際の PR に対して）
+- [ ] 5.2.3 テスト用 PR に CodeRabbit レビューがある状態で `orchestrator.py` を一度実行
+- [ ] 5.2.4 `tmp/daemon-workspace/` に変更がコミットされ GitHub に push されることを確認
+- [ ] 5.2.5 `run_daemon.sh` でデーモン起動・ループ動作を確認
+
+### Phase 5.3: ループ上限テスト
+
+- [ ] 5.3.1 `state.json` の `fix_attempts` を手動で `max_fix_attempts - 1` に設定
+- [ ] 5.3.2 次のサイクルで上限到達コメントが PR に投稿されることを確認
+- [ ] 5.3.3 上限後はデーモンがそのPRをスキップすることを確認

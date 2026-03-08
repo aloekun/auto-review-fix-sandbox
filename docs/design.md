@@ -1,4 +1,65 @@
-# Auto Review Fix MVP: 最小構成プロジェクト設計
+# Auto Review Fix: プロジェクト設計
+
+> Phase 1〜4 の GitHub Actions 方式については後半セクションを参照。
+> Phase 5 以降は **Local AI Agent Daemon** 方式を採用（[ADR-001](adr/001-move-to-local-daemon.md) 参照）。
+
+---
+
+## Phase 5: Local AI Agent Daemon 設計
+
+### アーキテクチャ
+
+```
+GitHub PR
+   │
+   ▼
+CodeRabbit review → PR comments
+   │
+   ▼
+Local Daemon (orchestrator.py) ← 60秒ポーリング
+   ├── gh api: レビュー取得
+   ├── gh pr diff: 差分取得
+   ├── プロンプト構築 (prompt_builder.py)
+   │
+   ▼
+Claude Code CLI
+  claude -p "<prompt>" --dangerously-skip-permissions
+   ├── ファイル編集
+   └── git commit + push (tmp/daemon-workspace/ 内)
+```
+
+### ディレクトリ構成
+
+```
+ai-review-fixer/
+ ├── config.yaml           # リポジトリ設定・最大試行回数
+ ├── requirements.txt      # PyYAML
+ ├── state_manager.py      # 処理済みPR追跡 (state.json, gitignore済み)
+ ├── review_collector.py   # gh CLI 経由でレビュー・diff 取得
+ ├── prompt_builder.py     # Claude へのプロンプト構築
+ ├── claude_runner.py      # claude -p ... 実行
+ ├── orchestrator.py       # メイン制御ループ
+ └── run_daemon.sh         # デーモン起動スクリプト
+
+tmp/daemon-workspace/       # 専用 git clone（gitignore済み）
+```
+
+### ループ防止ロジック
+
+- `state.json` で PR ごとの `fix_attempts` を追跡
+- `max_fix_attempts` (config.yaml, デフォルト 3) 超過時は PR にコメントを投稿して停止
+- 処理済みレビュー ID を `processed_review_ids` で記録し、再処理しない
+
+---
+
+## Phase 1〜4: GitHub Actions 方式（廃止）
+
+> 廃止理由: [ADR-001](adr/001-move-to-local-daemon.md) を参照。
+> 実装例: `.github/workflow_samples/` に保存。
+
+---
+
+# Auto Review Fix MVP: 最小構成プロジェクト設計（旧）
 
 Code Rabbit + Claude Code Action の自動レビュー修正を検証するための最小構成プロジェクト。
 techbook-ledger とは別の新規リポジトリで試行錯誤する。
