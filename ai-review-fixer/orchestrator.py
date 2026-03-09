@@ -121,7 +121,7 @@ def run_once(config: dict) -> None:
 
 
 # ---------------------------------------------------------------------------
-# Phase 6.1 — 通常モード（強化版コンテキスト付き）
+# Phase 6.1 - 通常モード（強化版コンテキスト付き）
 # ---------------------------------------------------------------------------
 
 def _process_pr(
@@ -177,7 +177,7 @@ def _process_pr(
     previous_fix_diff = get_previous_fix_diff(base_dir, pr_number, fix_attempts)
 
     print(
-        f"[orchestrator] PR #{pr_number}: context gathered — "
+        f"[orchestrator] PR #{pr_number}: context gathered - "
         f"{len(file_contents)} file(s), {len(func_names)} function(s), "
         f"previous_fix={'yes' if previous_fix_diff else 'no'}",
         flush=True,
@@ -223,7 +223,7 @@ def _process_pr(
 
 
 # ---------------------------------------------------------------------------
-# Phase 6.2 — Patch Proposal Mode（2段階実行）
+# Phase 6.2 - Patch Proposal Mode（2段階実行）
 # ---------------------------------------------------------------------------
 
 def _process_pr_patch_mode(
@@ -279,7 +279,7 @@ def _process_pr_patch_mode(
     previous_fix_diff = get_previous_fix_diff(base_dir, pr_number, fix_attempts)
 
     print(
-        f"[orchestrator] PR #{pr_number}: context gathered — "
+        f"[orchestrator] PR #{pr_number}: context gathered - "
         f"{len(file_contents)} file(s), {len(func_names)} function(s), "
         f"previous_fix={'yes' if previous_fix_diff else 'no'}",
         flush=True,
@@ -392,12 +392,13 @@ def _finalize_run(
             owner,
             repo,
             pr_number,
-            "Auto-fix run completed without creating a commit. Leaving this review unprocessed so it can be retried.",
+            "Auto-fix run completed without creating a commit. All review comments appear to be already addressed.",
         )
         print(
-            f"[orchestrator] PR #{pr_number}: no commit created; review left pending.",
+            f"[orchestrator] PR #{pr_number}: no commit created; marking review as processed to prevent retry loop.",
             flush=True,
         )
+        state_manager.record_fix(pr_number, [r.id for r in new_reviews])
         return
 
     report_body = report_builder.build_fix_report(
