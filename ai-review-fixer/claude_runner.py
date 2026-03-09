@@ -32,15 +32,22 @@ def run_claude(prompt: str, workspace_dir: Path) -> int:
                 env["CLAUDE_CODE_GIT_BASH_PATH"] = candidate
                 break
 
-    result = subprocess.run(
+    with subprocess.Popen(
         ["claude", "-p", prompt, "--dangerously-skip-permissions"],
         cwd=workspace_dir,
+        env=env,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
         text=True,
         encoding="utf-8",
-        env=env,
-    )
+        errors="replace",
+    ) as proc:
+        assert proc.stdout is not None
+        for line in proc.stdout:
+            print(line, end="")
+        returncode = proc.wait()
 
-    if result.returncode != 0:
-        print(f"[claude_runner] Claude exited with code {result.returncode}", file=sys.stderr)
+    if returncode != 0:
+        print(f"[claude_runner] Claude exited with code {returncode}", file=sys.stderr)
 
-    return result.returncode
+    return returncode
