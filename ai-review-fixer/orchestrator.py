@@ -157,7 +157,7 @@ def _process_pr(
     diff = get_pr_diff(owner, repo, pr_number)
     all_inline_comments = get_review_comments(owner, repo, pr_number)
 
-    new_review_ids = {r.id for r in new_reviews}
+    new_review_ids = {str(r.id) for r in new_reviews}
     new_inline_comments = [
         c for c in all_inline_comments
         if str(c.get("pull_request_review_id", "")) in new_review_ids
@@ -260,7 +260,7 @@ def _process_pr_patch_mode(
     diff = get_pr_diff(owner, repo, pr_number)
     all_inline_comments = get_review_comments(owner, repo, pr_number)
 
-    new_review_ids = {r.id for r in new_reviews}
+    new_review_ids = {str(r.id) for r in new_reviews}
     new_inline_comments = [
         c for c in all_inline_comments
         if str(c.get("pull_request_review_id", "")) in new_review_ids
@@ -317,6 +317,8 @@ def _process_pr_patch_mode(
         branch=pr_info.head_ref,
         fix_attempt=attempt_number,
         reviewer_bot=reviewer_bot,
+        reviews=new_reviews,
+        inline_comments=new_inline_comments,
     )
 
     returncode2 = run_claude(verify_prompt, workspace_dir)
@@ -384,6 +386,19 @@ def _finalize_run(
         "committed": run_data["committed"],
         "timestamp": datetime.now(timezone.utc).isoformat(),
     })
+
+    if not run_data["committed"]:
+        post_pr_comment(
+            owner,
+            repo,
+            pr_number,
+            "Auto-fix run completed without creating a commit. Leaving this review unprocessed so it can be retried.",
+        )
+        print(
+            f"[orchestrator] PR #{pr_number}: no commit created; review left pending.",
+            flush=True,
+        )
+        return
 
     report_body = report_builder.build_fix_report(
         pr_number=pr_number,

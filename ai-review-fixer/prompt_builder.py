@@ -72,7 +72,7 @@ After editing, re-read the **entire** changed file(s) and answer these questions
 1. Does every change directly address a comment from {reviewer_bot}?
 2. Do any fallback/default values break logic that depends on them downstream?
 3. Have I introduced new edge cases or regressions?
-4. Is the fix consistent with how callers use this code (see Call Graph section)?
+4. Is any caller usage inconsistent with this fix (see Call Graph section)?
 
 If the answer to Q2, Q3, or Q4 is "yes", fix the problem before committing.
 
@@ -165,7 +165,7 @@ After editing, run the following commands to save the diff and then STOP.
 Do NOT run git add, git commit, or git push.
 
 ```
-git diff > proposed.patch
+git diff > ../proposed.patch
 ```
 
 Report your fix plan and the list of files you changed.
@@ -199,8 +199,13 @@ def build_patch_verification_prompt(
     branch: str,
     fix_attempt: int,
     reviewer_bot: str,
+    reviews: list[Review] | None = None,
+    inline_comments: list[dict] | None = None,
 ) -> str:
     """Run 2: proposed.patch を検証し、問題なければ commit & push する。"""
+    review_text = _format_reviews(reviews or [], reviewer_bot)
+    inline_text = _format_inline_comments(inline_comments or [], reviewer_bot)
+
     return f"""You are an autonomous code-verification agent (Patch Verification Phase).
 The working directory contains uncommitted changes proposed by a previous fix run.
 
@@ -224,11 +229,11 @@ git diff --name-only | xargs cat
 ```
 
 ### Step 2 — Verification Checklist
-Answer these questions for each changed file:
-1. Does every change directly address a review comment from {reviewer_bot}?
+Answer these questions for each changed file (a "yes" answer means a problem was found):
+1. Does any change fail to directly address a review comment from {reviewer_bot}?
 2. Do any fallback/default values break logic that depends on them downstream?
 3. Have I introduced new edge cases or regressions?
-4. Is the surrounding code still consistent and correct?
+4. Is the surrounding code inconsistent or incorrect after this change?
 
 ### Step 3 — Fix or Accept
 - If any answer above is "yes" (a problem was found): fix the problem in place.
@@ -242,6 +247,18 @@ git push origin {branch}
 ```
 
 Report: what was proposed, what (if anything) you corrected, and what was committed.
+
+--- BEGIN UNTRUSTED DATA ---
+
+### Review Comments from {reviewer_bot}
+
+{review_text}
+
+### Inline Review Comments from {reviewer_bot}
+
+{inline_text}
+
+--- END UNTRUSTED DATA ---
 """
 
 

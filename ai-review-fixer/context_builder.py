@@ -123,6 +123,11 @@ def get_call_graph_context(
                 encoding="utf-8",
                 errors="replace",
             )
+            if result.returncode not in (0, 1):
+                sections.append(f"#### Usages of `{name}`")
+                sections.append(f"(call-graph lookup failed: {result.stderr.strip()})")
+                sections.append("")
+                continue
             output = result.stdout.strip()
             if not output:
                 continue
@@ -130,8 +135,10 @@ def get_call_graph_context(
             sections.append(f"#### Usages of `{name}`")
             sections.extend(lines)
             sections.append("")
-        except Exception:
-            pass
+        except (OSError, subprocess.SubprocessError) as exc:
+            sections.append(f"#### Usages of `{name}`")
+            sections.append(f"(call-graph lookup failed: {exc})")
+            sections.append("")
 
     return "\n".join(sections)
 
