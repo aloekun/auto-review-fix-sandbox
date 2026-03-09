@@ -8,6 +8,7 @@ run_logger.py
 """
 
 import json
+import shutil
 import subprocess
 from datetime import datetime, timezone
 from pathlib import Path
@@ -39,12 +40,13 @@ def save_run_artifacts(
     )
     (run_dir / "diff_before.patch").write_text(diff_before, encoding="utf-8")
 
+    commit_hash: str | None = None
     try:
         commit_hash = _get_commit_hash(workspace_dir)
     except subprocess.CalledProcessError as exc:
         print(f"[run_logger] Failed to get commit hash: {exc}", flush=True)
-        commit_hash = "unknown"
-    committed = commit_hash != original_head_sha
+    committed = commit_hash is not None and commit_hash != original_head_sha
+    commit_hash = commit_hash or "unknown"
 
     files_changed: list[str] = []
     if committed:
@@ -82,8 +84,11 @@ def save_structured_log(base_dir: Path, log_data: dict) -> None:
 
 
 def _run_git(workspace_dir: Path, *args: str) -> str:
+    git_bin = shutil.which("git")
+    if git_bin is None:
+        raise FileNotFoundError("Could not find 'git' in PATH")
     result = subprocess.run(
-        ["git", *args],
+        [git_bin, *args],
         capture_output=True,
         text=True,
         encoding="utf-8",
