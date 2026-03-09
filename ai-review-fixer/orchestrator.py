@@ -9,10 +9,13 @@ orchestrator.py
 
 import subprocess
 import sys
+from datetime import datetime, timezone
 from pathlib import Path
 
 import yaml
 
+import report_builder
+import run_logger
 import state_manager
 from claude_runner import run_claude
 from prompt_builder import build_prompt
@@ -154,6 +157,43 @@ def _process_pr(
             file=sys.stderr, flush=True,
         )
         return
+
+    base_dir = Path(__file__).parent
+    attempt_number = fix_attempts + 1
+
+    run_data = run_logger.save_run_artifacts(
+        base_dir=base_dir,
+        pr_number=pr_number,
+        attempt=attempt_number,
+        prompt=prompt,
+        reviews=new_reviews,
+        inline_comments=new_inline_comments,
+        diff_before=diff,
+        workspace_dir=workspace_dir,
+        original_head_sha=pr_info.head_sha,
+    )
+
+    run_logger.save_structured_log(base_dir, {
+        "pr": pr_number,
+        "attempt": attempt_number,
+        "reviews_processed": len(new_reviews),
+        "files_changed": run_data["files_changed"],
+        "commit": run_data["commit_hash"],
+        "committed": run_data["committed"],
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+    })
+
+    report_body = report_builder.build_fix_report(
+        pr_number=pr_number,
+        attempt=attempt_number,
+        max_attempts=max_attempts,
+        reviews=new_reviews,
+        files_changed=run_data["files_changed"],
+        commit_hash=run_data["commit_hash"],
+        committed=run_data["committed"],
+    )
+    post_pr_comment(owner, repo, pr_number, report_body)
+    print(f"[orchestrator] PR #{pr_number}: posted fix report comment.", flush=True)
 
     new_attempt = state_manager.record_fix(pr_number, [r.id for r in new_reviews])
     print(f"[orchestrator] PR #{pr_number}: fix attempt {new_attempt} recorded.", flush=True)
