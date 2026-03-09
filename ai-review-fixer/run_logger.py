@@ -39,14 +39,24 @@ def save_run_artifacts(
     )
     (run_dir / "diff_before.patch").write_text(diff_before, encoding="utf-8")
 
-    commit_hash = _get_commit_hash(workspace_dir)
+    try:
+        commit_hash = _get_commit_hash(workspace_dir)
+    except subprocess.CalledProcessError as exc:
+        print(f"[run_logger] Failed to get commit hash: {exc}", flush=True)
+        commit_hash = "unknown"
     committed = commit_hash != original_head_sha
 
     files_changed: list[str] = []
     if committed:
-        files_changed = _get_changed_files(workspace_dir)
-        diff_after = _get_diff_after(workspace_dir)
-        (run_dir / "diff_after.patch").write_text(diff_after, encoding="utf-8")
+        try:
+            files_changed = _get_changed_files(workspace_dir)
+        except subprocess.CalledProcessError as exc:
+            print(f"[run_logger] Failed to get changed files: {exc}", flush=True)
+        try:
+            diff_after = _get_diff_after(workspace_dir)
+            (run_dir / "diff_after.patch").write_text(diff_after, encoding="utf-8")
+        except subprocess.CalledProcessError as exc:
+            print(f"[run_logger] Failed to get diff after: {exc}", flush=True)
 
     print(f"[run_logger] Saved artifacts: {run_dir}", flush=True)
     return {

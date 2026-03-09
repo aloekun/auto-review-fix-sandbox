@@ -59,15 +59,18 @@ def run_claude(prompt: str, workspace_dir: Path) -> int:
         assert proc.stdout is not None
 
         # stdin への書き込みをバックグラウンドスレッドで行い、パイプバッファのデッドロックを防ぐ
-        writer_error: list[BaseException] = []
+        writer_error: list[Exception] = []
 
         def _write_stdin() -> None:
             try:
                 proc.stdin.write(prompt)
-            except BaseException as exc:
+            except Exception as exc:
                 writer_error.append(exc)
             finally:
-                proc.stdin.close()
+                try:
+                    proc.stdin.close()
+                except Exception as exc:
+                    writer_error.append(exc)
 
         writer = threading.Thread(target=_write_stdin, daemon=True)
         writer.start()
@@ -77,8 +80,15 @@ def run_claude(prompt: str, workspace_dir: Path) -> int:
 
         writer.join()
         if writer_error:
-            proc.kill()
-            raise RuntimeError("Failed to send prompt to Claude") from writer_error[0]
+            if proc.poll() is None:
+                proc.kill()
+            proc.wait()
+            print(
+                "[claude_runner] Failed to send prompt to Claude",
+                file=sys.stderr,
+                flush=True,
+            )
+            return 1
         returncode = proc.wait()
 
     if returncode != 0:
