@@ -7,3 +7,5 @@ Thumbs.db
 tmp/
 claude-execution-output*.json
 ai-review-fixer/state.json
+__pycache__/
+*.pyc

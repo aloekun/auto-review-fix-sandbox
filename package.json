@@ -21,6 +21,8 @@
     "gh-run": "gh run",
     "gh-api": "gh api",
     "gh-secret": "gh secret",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "daemon": "python ai-review-fixer/orchestrator.py",
+    "daemon:loop": "python ai-review-fixer/orchestrator.py --loop"
   }
 }

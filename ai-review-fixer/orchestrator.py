@@ -168,5 +168,20 @@ def _process_pr(
 
 
 if __name__ == "__main__":
+    import time
+    loop = "--loop" in sys.argv
     cfg = load_config()
-    run_once(cfg)
+    poll_interval = cfg["daemon"]["poll_interval_seconds"]
+
+    if loop:
+        print("[daemon] Starting loop mode (Ctrl+C to stop)...", flush=True)
+        while True:
+            print(f"[daemon] {__import__('datetime').datetime.now().strftime('%Y-%m-%d %H:%M:%S')} Running orchestrator...", flush=True)
+            try:
+                run_once(cfg)
+            except Exception as e:
+                print(f"[daemon] Error: {e}", file=sys.stderr, flush=True)
+            print(f"[daemon] Sleeping {poll_interval} seconds...", flush=True)
+            time.sleep(poll_interval)
+    else:
+        run_once(cfg)
