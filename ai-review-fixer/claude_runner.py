@@ -5,8 +5,10 @@ tmp/daemon-workspace/ 内で実行し、git コマンドが自由に使える環
 """
 
 import os
+import shutil
 import subprocess
 import sys
+import threading
 from pathlib import Path
 
 
@@ -33,8 +35,12 @@ def run_claude(prompt: str, workspace_dir: Path) -> int:
                 break
 
     # プロンプトは stdin 経由で渡す（コマンドライン引数はWindowsで32767文字制限があるため）
+    claude_bin = shutil.which("claude")
+    if claude_bin is None:
+        raise FileNotFoundError("Could not find 'claude' in PATH")
+
     with subprocess.Popen(
-        ["claude", "-p", "--dangerously-skip-permissions"],
+        [claude_bin, "-p", "--dangerously-skip-permissions"],
         cwd=workspace_dir,
         env=env,
         stdin=subprocess.PIPE,
@@ -46,10 +52,19 @@ def run_claude(prompt: str, workspace_dir: Path) -> int:
     ) as proc:
         assert proc.stdin is not None
         assert proc.stdout is not None
-        proc.stdin.write(prompt)
-        proc.stdin.close()
+
+        # stdin への書き込みをバックグラウンドスレッドで行い、パイプバッファのデッドロックを防ぐ
+        def _write_stdin() -> None:
+            proc.stdin.write(prompt)
+            proc.stdin.close()
+
+        writer = threading.Thread(target=_write_stdin, daemon=True)
+        writer.start()
+
         for line in proc.stdout:
             print(line, end="", flush=True)
+
+        writer.join()
         returncode = proc.wait()
 
     if returncode != 0:
