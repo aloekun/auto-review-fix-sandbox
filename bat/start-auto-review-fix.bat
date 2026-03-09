@@ -6,8 +6,9 @@ echo  Ctrl+C to stop
 echo ========================================
 echo.
 
-cd /d "e:\work\auto-review-fix-vc"
-pnpm daemon:loop
+pushd "%~dp0.." || exit /b 1
+call pnpm daemon:loop
+popd
 
 echo.
 echo Daemon stopped.
