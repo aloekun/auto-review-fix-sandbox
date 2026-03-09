@@ -32,19 +32,24 @@ def run_claude(prompt: str, workspace_dir: Path) -> int:
                 env["CLAUDE_CODE_GIT_BASH_PATH"] = candidate
                 break
 
+    # プロンプトは stdin 経由で渡す（コマンドライン引数はWindowsで32767文字制限があるため）
     with subprocess.Popen(
-        ["claude", "-p", prompt, "--dangerously-skip-permissions"],
+        ["claude", "-p", "--dangerously-skip-permissions"],
         cwd=workspace_dir,
         env=env,
+        stdin=subprocess.PIPE,
         stdout=subprocess.PIPE,
         stderr=subprocess.STDOUT,
         text=True,
         encoding="utf-8",
         errors="replace",
     ) as proc:
+        assert proc.stdin is not None
         assert proc.stdout is not None
+        proc.stdin.write(prompt)
+        proc.stdin.close()
         for line in proc.stdout:
-            print(line, end="")
+            print(line, end="", flush=True)
         returncode = proc.wait()
 
     if returncode != 0:
