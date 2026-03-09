@@ -37,7 +37,12 @@ def run_claude(prompt: str, workspace_dir: Path) -> int:
     # プロンプトは stdin 経由で渡す（コマンドライン引数はWindowsで32767文字制限があるため）
     claude_bin = shutil.which("claude")
     if claude_bin is None:
-        raise FileNotFoundError("Could not find 'claude' in PATH")
+        print(
+            "[claude_runner] Could not find 'claude' in PATH",
+            file=sys.stderr,
+            flush=True,
+        )
+        return 127
 
     with subprocess.Popen(
         [claude_bin, "-p", "--dangerously-skip-permissions"],
@@ -54,9 +59,15 @@ def run_claude(prompt: str, workspace_dir: Path) -> int:
         assert proc.stdout is not None
 
         # stdin への書き込みをバックグラウンドスレッドで行い、パイプバッファのデッドロックを防ぐ
+        writer_error: list[BaseException] = []
+
         def _write_stdin() -> None:
-            proc.stdin.write(prompt)
-            proc.stdin.close()
+            try:
+                proc.stdin.write(prompt)
+            except BaseException as exc:
+                writer_error.append(exc)
+            finally:
+                proc.stdin.close()
 
         writer = threading.Thread(target=_write_stdin, daemon=True)
         writer.start()
@@ -65,6 +76,9 @@ def run_claude(prompt: str, workspace_dir: Path) -> int:
             print(line, end="", flush=True)
 
         writer.join()
+        if writer_error:
+            proc.kill()
+            raise RuntimeError("Failed to send prompt to Claude") from writer_error[0]
         returncode = proc.wait()
 
     if returncode != 0:

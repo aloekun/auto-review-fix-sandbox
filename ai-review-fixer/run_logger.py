@@ -71,31 +71,30 @@ def save_structured_log(base_dir: Path, log_data: dict) -> None:
     print(f"[run_logger] Saved log: {log_file}", flush=True)
 
 
-def _get_commit_hash(workspace_dir: Path) -> str:
+def _run_git(workspace_dir: Path, *args: str) -> str:
     result = subprocess.run(
-        ["git", "log", "-1", "--format=%H"],
-        capture_output=True, text=True, encoding="utf-8", errors="replace",
+        ["git", *args],
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        errors="replace",
         cwd=workspace_dir,
+        check=True,
     )
-    return result.stdout.strip()
+    return result.stdout
+
+
+def _get_commit_hash(workspace_dir: Path) -> str:
+    return _run_git(workspace_dir, "log", "-1", "--format=%H").strip()
 
 
 def _get_changed_files(workspace_dir: Path) -> list:
-    result = subprocess.run(
-        ["git", "show", "--name-only", "--format=", "HEAD"],
-        capture_output=True, text=True, encoding="utf-8", errors="replace",
-        cwd=workspace_dir,
-    )
-    return [f for f in result.stdout.strip().split("\n") if f]
+    stdout = _run_git(workspace_dir, "show", "--name-only", "--format=", "HEAD")
+    return [f for f in stdout.strip().split("\n") if f]
 
 
 def _get_diff_after(workspace_dir: Path) -> str:
-    result = subprocess.run(
-        ["git", "show", "HEAD", "--patch"],
-        capture_output=True, text=True, encoding="utf-8", errors="replace",
-        cwd=workspace_dir,
-    )
-    return result.stdout or ""
+    return _run_git(workspace_dir, "show", "HEAD", "--patch")
 
 
 def _format_reviews_text(reviews: list, inline_comments: list) -> str:
