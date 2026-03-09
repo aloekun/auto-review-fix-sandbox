@@ -5,6 +5,7 @@ orchestrator.py
 使い方:
   python orchestrator.py          # 一度だけ実行（デーモン用）
   python orchestrator.py --once   # 同上（明示的）
+  python orchestrator.py --loop   # 60秒ポーリングのループモード
 """
 
 import subprocess
@@ -18,7 +19,18 @@ import report_builder
 import run_logger
 import state_manager
 from claude_runner import run_claude
-from prompt_builder import build_prompt
+from context_builder import (
+    extract_changed_files,
+    extract_function_names_from_diff,
+    get_call_graph_context,
+    get_file_contents,
+    get_previous_fix_diff,
+)
+from prompt_builder import (
+    build_patch_proposal_prompt,
+    build_patch_verification_prompt,
+    build_prompt,
+)
 from review_collector import (
     get_open_prs,
     get_pr_diff,
@@ -78,6 +90,7 @@ def run_once(config: dict) -> None:
     max_attempts = config["daemon"]["max_fix_attempts"]
     reviewer_bot = config["reviewer_bot"]
     workspace_dir = (Path(__file__).parent / config["daemon"]["workspace_dir"]).resolve()
+    patch_proposal_mode = config["daemon"].get("patch_proposal_mode", False)
 
     ensure_workspace(workspace_dir, owner, repo)
 
@@ -87,15 +100,29 @@ def run_once(config: dict) -> None:
         return
 
     for pr_number in pr_numbers:
-        _process_pr(
-            pr_number=pr_number,
-            owner=owner,
-            repo=repo,
-            max_attempts=max_attempts,
-            reviewer_bot=reviewer_bot,
-            workspace_dir=workspace_dir,
-        )
+        if patch_proposal_mode:
+            _process_pr_patch_mode(
+                pr_number=pr_number,
+                owner=owner,
+                repo=repo,
+                max_attempts=max_attempts,
+                reviewer_bot=reviewer_bot,
+                workspace_dir=workspace_dir,
+            )
+        else:
+            _process_pr(
+                pr_number=pr_number,
+                owner=owner,
+                repo=repo,
+                max_attempts=max_attempts,
+                reviewer_bot=reviewer_bot,
+                workspace_dir=workspace_dir,
+            )
 
+
+# ---------------------------------------------------------------------------
+# Phase 6.1 — 通常モード（強化版コンテキスト付き）
+# ---------------------------------------------------------------------------
 
 def _process_pr(
     pr_number: int,
@@ -115,9 +142,9 @@ def _process_pr(
     reviews = get_reviews(owner, repo, pr_number)
     new_reviews = [
         r for r in reviews
-        if r.user_login == reviewer_bot
-        and r.state == "CHANGES_REQUESTED"
-        and r.id not in processed_ids
+        if r.user_login == reviewer_bot and
+        r.state == "CHANGES_REQUESTED" and
+        r.id not in processed_ids
     ]
 
     if not new_reviews:
@@ -136,6 +163,26 @@ def _process_pr(
         if str(c.get("pull_request_review_id", "")) in new_review_ids
     ]
 
+    # ブランチを最新化してからファイル内容を読み込む（6.1.1 / 6.1.2）
+    prepare_branch(workspace_dir, pr_info.head_ref)
+
+    base_dir = Path(__file__).parent
+    attempt_number = fix_attempts + 1
+
+    # 追加コンテキストを収集する
+    changed_files = extract_changed_files(diff)
+    file_contents = get_file_contents(changed_files, workspace_dir)
+    func_names = extract_function_names_from_diff(diff)
+    call_graph_context = get_call_graph_context(func_names, workspace_dir)
+    previous_fix_diff = get_previous_fix_diff(base_dir, pr_number, fix_attempts)
+
+    print(
+        f"[orchestrator] PR #{pr_number}: context gathered — "
+        f"{len(file_contents)} file(s), {len(func_names)} function(s), "
+        f"previous_fix={'yes' if previous_fix_diff else 'no'}",
+        flush=True,
+    )
+
     prompt = build_prompt(
         pr_number=pr_number,
         pr_title=pr_info.title,
@@ -143,11 +190,12 @@ def _process_pr(
         diff=diff,
         reviews=new_reviews,
         inline_comments=new_inline_comments,
-        fix_attempt=fix_attempts + 1,
+        fix_attempt=attempt_number,
         reviewer_bot=reviewer_bot,
+        file_contents=file_contents,
+        call_graph_context=call_graph_context,
+        previous_fix_diff=previous_fix_diff,
     )
-
-    prepare_branch(workspace_dir, pr_info.head_ref)
 
     returncode = run_claude(prompt, workspace_dir)
 
@@ -158,9 +206,163 @@ def _process_pr(
         )
         return
 
+    _finalize_run(
+        pr_number=pr_number,
+        owner=owner,
+        repo=repo,
+        attempt_number=attempt_number,
+        max_attempts=max_attempts,
+        prompt=prompt,
+        new_reviews=new_reviews,
+        new_inline_comments=new_inline_comments,
+        diff=diff,
+        workspace_dir=workspace_dir,
+        original_head_sha=pr_info.head_sha,
+        base_dir=base_dir,
+    )
+
+
+# ---------------------------------------------------------------------------
+# Phase 6.2 — Patch Proposal Mode（2段階実行）
+# ---------------------------------------------------------------------------
+
+def _process_pr_patch_mode(
+    pr_number: int,
+    owner: str,
+    repo: str,
+    max_attempts: int,
+    reviewer_bot: str,
+    workspace_dir: Path,
+) -> None:
+    """Run 1 でパッチ生成のみ、Run 2 でパッチ検証 → commit を行う2段階モード。"""
+    fix_attempts = state_manager.get_fix_attempts(pr_number)
+    processed_ids = state_manager.get_processed_review_ids(pr_number)
+
+    if fix_attempts >= max_attempts:
+        print(f"[orchestrator] PR #{pr_number}: max attempts ({max_attempts}) reached, skip.", flush=True)
+        return
+
+    reviews = get_reviews(owner, repo, pr_number)
+    new_reviews = [
+        r for r in reviews
+        if r.user_login == reviewer_bot and
+        r.state == "CHANGES_REQUESTED" and
+        r.id not in processed_ids
+    ]
+
+    if not new_reviews:
+        print(f"[orchestrator] PR #{pr_number}: no new CHANGES_REQUESTED reviews from {reviewer_bot}, skip.", flush=True)
+        return
+
+    print(f"[orchestrator] PR #{pr_number}: {len(new_reviews)} new review(s) found (patch mode).", flush=True)
+
+    pr_info = get_pr_info(owner, repo, pr_number)
+    diff = get_pr_diff(owner, repo, pr_number)
+    all_inline_comments = get_review_comments(owner, repo, pr_number)
+
+    new_review_ids = {r.id for r in new_reviews}
+    new_inline_comments = [
+        c for c in all_inline_comments
+        if str(c.get("pull_request_review_id", "")) in new_review_ids
+    ]
+
+    # ブランチを最新化してからコンテキストを収集（Run 1 の前に1回だけ）
+    prepare_branch(workspace_dir, pr_info.head_ref)
+
     base_dir = Path(__file__).parent
     attempt_number = fix_attempts + 1
 
+    changed_files = extract_changed_files(diff)
+    file_contents = get_file_contents(changed_files, workspace_dir)
+    func_names = extract_function_names_from_diff(diff)
+    call_graph_context = get_call_graph_context(func_names, workspace_dir)
+    previous_fix_diff = get_previous_fix_diff(base_dir, pr_number, fix_attempts)
+
+    print(
+        f"[orchestrator] PR #{pr_number}: context gathered — "
+        f"{len(file_contents)} file(s), {len(func_names)} function(s), "
+        f"previous_fix={'yes' if previous_fix_diff else 'no'}",
+        flush=True,
+    )
+
+    # Run 1: パッチ生成（commit しない）
+    print(f"[orchestrator] PR #{pr_number}: starting Run 1 (patch proposal)...", flush=True)
+    proposal_prompt = build_patch_proposal_prompt(
+        pr_number=pr_number,
+        pr_title=pr_info.title,
+        branch=pr_info.head_ref,
+        diff=diff,
+        reviews=new_reviews,
+        inline_comments=new_inline_comments,
+        fix_attempt=attempt_number,
+        reviewer_bot=reviewer_bot,
+        file_contents=file_contents,
+        call_graph_context=call_graph_context,
+        previous_fix_diff=previous_fix_diff,
+    )
+
+    returncode1 = run_claude(proposal_prompt, workspace_dir)
+    if returncode1 != 0:
+        print(
+            f"[orchestrator] PR #{pr_number}: Run 1 (patch proposal) failed with code {returncode1}, skip.",
+            file=sys.stderr, flush=True,
+        )
+        return
+
+    print(f"[orchestrator] PR #{pr_number}: Run 1 complete. Starting Run 2 (verification)...", flush=True)
+
+    # Run 2: 検証 → commit（prepare_branch は呼ばない: Run 1 の変更を保持する）
+    verify_prompt = build_patch_verification_prompt(
+        pr_number=pr_number,
+        branch=pr_info.head_ref,
+        fix_attempt=attempt_number,
+        reviewer_bot=reviewer_bot,
+    )
+
+    returncode2 = run_claude(verify_prompt, workspace_dir)
+    if returncode2 != 0:
+        print(
+            f"[orchestrator] PR #{pr_number}: Run 2 (verification) failed with code {returncode2}, skip.",
+            file=sys.stderr, flush=True,
+        )
+        return
+
+    # 両 Run 完了後にアーティファクトを保存し、PR にレポートを投稿する
+    # Run 1 の proposal_prompt を代表プロンプトとして保存する
+    _finalize_run(
+        pr_number=pr_number,
+        owner=owner,
+        repo=repo,
+        attempt_number=attempt_number,
+        max_attempts=max_attempts,
+        prompt=proposal_prompt,
+        new_reviews=new_reviews,
+        new_inline_comments=new_inline_comments,
+        diff=diff,
+        workspace_dir=workspace_dir,
+        original_head_sha=pr_info.head_sha,
+        base_dir=base_dir,
+    )
+
+
+# ---------------------------------------------------------------------------
+# 共通フィナライズ（アーティファクト保存 + PR コメント投稿）
+# ---------------------------------------------------------------------------
+
+def _finalize_run(
+    pr_number: int,
+    owner: str,
+    repo: str,
+    attempt_number: int,
+    max_attempts: int,
+    prompt: str,
+    new_reviews: list,
+    new_inline_comments: list,
+    diff: str,
+    workspace_dir: Path,
+    original_head_sha: str,
+    base_dir: Path,
+) -> None:
     run_data = run_logger.save_run_artifacts(
         base_dir=base_dir,
         pr_number=pr_number,
@@ -170,7 +372,7 @@ def _process_pr(
         inline_comments=new_inline_comments,
         diff_before=diff,
         workspace_dir=workspace_dir,
-        original_head_sha=pr_info.head_sha,
+        original_head_sha=original_head_sha,
     )
 
     run_logger.save_structured_log(base_dir, {

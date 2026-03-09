@@ -6,5 +6,7 @@ daemon:
   poll_interval_seconds: 60
   max_fix_attempts: 3
   workspace_dir: ../tmp/daemon-workspace
+  # Phase 6.2: 2段階パッチ提案モード。Phase 6.1 の効果測定後に true に変更する。
+  patch_proposal_mode: false
 
 reviewer_bot: "coderabbitai[bot]"

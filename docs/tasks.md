@@ -49,3 +49,41 @@
 - [ ] 5.1 テスト PR をクローズ
 - [ ] 5.2 検証結果を記録 (成功/失敗、問題点、改善案)
 - [ ] 5.3 横展開に向けた知見を整理
+
+## Phase 6: AI自動修正品質改善
+
+### 背景
+
+PR #20・#21でCodeRabbitとのやり取りが6往復以上に膨らんだ。根本原因は3つ:
+- context不足（diffのみ、ファイル全体・呼び出し元なし）
+- `Fix ONLY` 制約による副作用チェックなし
+- verification step なし（修正後に自己検証しない）
+
+### Phase 6.1: プロンプト改善（`prompt_builder.py`）
+
+- [x] 6.1.1 変更対象ファイルの**全体内容**をプロンプトに追加
+  - diffだけでなく、レビューで言及されたファイルを丸ごと渡す
+  - `context_builder.py`: `extract_changed_files()` / `get_file_contents()`
+- [x] 6.1.2 **Call graph context** を追加
+  - 修正対象の関数を呼び出しているコードを grep して渡す
+  - `context_builder.py`: `extract_function_names_from_diff()` / `get_call_graph_context()`
+- [x] 6.1.3 **Previous fix context** を追加
+  - 前回の自動修正diffがあればプロンプトに含める
+  - `context_builder.py`: `get_previous_fix_diff()`
+- [x] 6.1.4 `Fix ONLY` 制約を緩和し **Fix plan + Self-verification** に変更
+  - Step 1: 修正計画を説明させる
+  - Step 2: 実装する
+  - Step 3: 修正後にファイル全体を再読し「フォールバック値が後続ロジックを壊さないか」「新たなエッジケースを導入していないか」を検証させてからcommitさせる
+  - Step 4: 全項目クリア後に commit & push
+
+### Phase 6.2: Patch Proposal Mode（`orchestrator.py` 構造変更）
+
+*Phase 6.1 の効果測定後に `config.yaml` の `patch_proposal_mode: true` で有効化する。*
+
+- [x] 6.2.1 Run 1: パッチ生成のみ（commitしない）
+  - `prompt_builder.py`: `build_patch_proposal_prompt()` — 変更後に `git diff > proposed.patch` して停止
+- [x] 6.2.2 Run 2: パッチ検証 → 問題があれば修正 → commit
+  - `prompt_builder.py`: `build_patch_verification_prompt()` — `git diff` 再読 → 検証チェックリスト → commit
+- [x] 6.2.3 orchestrator.py・claude_runner.py の対応する変更
+  - `orchestrator.py`: `_process_pr_patch_mode()` で2段階実行、`_finalize_run()` で共通後処理
+  - `config.yaml`: `patch_proposal_mode: false`（デフォルト off）
