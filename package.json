@@ -8,6 +8,7 @@
     "jj-diff": "jj diff",
     "jj-describe": "jj describe",
     "jj-new": "jj new",
+    "jj-start-change": "jj git fetch && jj new main@origin",
     "jj-squash": "jj squash",
     "jj-bookmark": "jj bookmark",
     "jj-rebase": "jj rebase",
@@ -15,7 +16,7 @@
     "jj-restore": "jj restore",
     "jj-file-show": "jj file show",
     "jj-fetch": "jj git fetch",
-    "jj-push": "jj git push",
+    "jj-push": "bash .claude/scripts/jj-push-safe.sh",
     "gh-repo": "gh repo",
     "gh-pr": "gh pr",
     "gh-run": "gh run",
@@ -23,6 +24,7 @@
     "gh-secret": "gh secret",
     "typecheck": "tsc --noEmit",
     "daemon": "python ai-review-fixer/orchestrator.py",
-    "daemon:loop": "python ai-review-fixer/orchestrator.py --loop"
+    "daemon:loop": "python ai-review-fixer/orchestrator.py --loop",
+    "build:hooks-rs": "cd .claude/hooks-rs && cargo build --release && (cp target/release/validate-command.exe ../validate-command.exe 2>/dev/null || cp target/release/validate-command ../validate-command.exe)"
   }
 }
