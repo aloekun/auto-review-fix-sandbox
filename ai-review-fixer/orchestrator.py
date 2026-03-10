@@ -392,13 +392,12 @@ def _finalize_run(
             owner,
             repo,
             pr_number,
-            "Auto-fix run completed without creating a commit. All review comments appear to be already addressed.",
+            "Auto-fix run completed without creating a commit. Leaving this review unprocessed so it can be retried.",
         )
         print(
-            f"[orchestrator] PR #{pr_number}: no commit created; marking review as processed to prevent retry loop.",
+            f"[orchestrator] PR #{pr_number}: no commit created; review left pending.",
             flush=True,
         )
-        state_manager.record_fix(pr_number, [r.id for r in new_reviews])
         return
 
     report_body = report_builder.build_fix_report(
