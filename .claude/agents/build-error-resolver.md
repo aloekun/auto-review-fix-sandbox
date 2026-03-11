@@ -227,8 +227,8 @@ async function fetchData() {
 import React from 'react'
 
 // ✅ FIX: Install dependencies
-npm install react
-npm install --save-dev @types/react
+pnpm add react
+pnpm add -D @types/react
 
 // ✅ CHECK: Verify package.json has dependency
 {
@@ -449,7 +449,7 @@ Parameter 'market' implicitly has an 'any' type.
 ## When to Use This Agent
 
 **USE when:**
-- `npm run build` fails
+- `pnpm build` fails
 - `npx tsc --noEmit` shows errors
 - Type errors blocking development
 - Import/module resolution errors
@@ -490,27 +490,27 @@ Parameter 'market' implicitly has an 'any' type.
 npx tsc --noEmit
 
 # Build Next.js
-npm run build
+pnpm build
 
 # Clear cache and rebuild
 rm -rf .next node_modules/.cache
-npm run build
+pnpm build
 
 # Check specific file
 npx tsc --noEmit src/path/to/file.ts
 
 # Install missing dependencies
-npm install
+pnpm install
 
 # Fix ESLint issues automatically
-npx eslint . --fix
+pnpm lint -- --fix
 
 # Update TypeScript
-npm install --save-dev typescript@latest
+pnpm add -D typescript@latest
 
 # Verify node_modules
-rm -rf node_modules package-lock.json
-npm install
+rm -rf node_modules pnpm-lock.yaml
+pnpm install
 ```
 
 ## Success Metrics

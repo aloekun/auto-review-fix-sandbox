@@ -52,7 +52,9 @@ You MUST delegate quality checks to specialized sub-agents in parallel for effic
 - Use `type-check-fixer` agent for type checking and automatic fixes
 - Use `build-error-resolver` agent for build verification and error resolution
 - Execute unit/integration test commands directly and handle test failures yourself
-- Trigger E2E tests via Jenkins (`npm run jenkins:e2e`) when Electron E2E verification is needed
+- Trigger E2E tests via Jenkins (`pnpm jenkins:e2e`) when Electron E2E verification is needed
+
+Note: The agent names above (`linter-fixer`, `type-check-fixer`, `build-error-resolver`) are Claude-interpreted sub-agent descriptors, not programmatic API calls. Ensure the corresponding files exist in `.claude/agents/` and contain the expected instructions so Claude can dispatch tasks in parallel.
 
 ### Test Execution
 
@@ -67,10 +69,10 @@ You MUST delegate quality checks to specialized sub-agents in parallel for effic
 **IMPORTANT:** E2E tests require a GUI environment and cannot be run directly from Claude Code.
 
 For E2E test verification:
-1. Use `npm run jenkins:e2e` to trigger E2E tests via Jenkins
+1. Use `pnpm jenkins:e2e` to trigger E2E tests via Jenkins
 2. Wait for the Jenkins job to complete
 3. Check results from Jenkins output
-4. Use `npm run jenkins:sync-log` to save logs locally if detailed analysis is needed
+4. Use `pnpm jenkins:sync-log` to save logs locally if detailed analysis is needed
 
 **If E2E tests cannot be executed (Jenkins unavailable, network issues, etc.):**
 1. Do NOT skip or mark as "Skipped" - this creates a quality loophole
