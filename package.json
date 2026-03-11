@@ -33,6 +33,7 @@
     "py-test": "pytest ai-review-fixer/tests -m \"not e2e\" -v",
     "py-test:cov": "pytest ai-review-fixer/tests -m \"not e2e\" --cov=ai-review-fixer --cov-report=term-missing --cov-fail-under=80",
     "py-install-dev": "pip install -r ai-review-fixer/requirements.txt -r ai-review-fixer/requirements-dev.txt",
-    "gh-reviews": "python scripts/fetch_pr_reviews.py"
+    "gh-reviews": "python scripts/fetch_pr_reviews.py --",
+    "gh-unresolved": "python scripts/list_unresolved.py --"
   }
 }
