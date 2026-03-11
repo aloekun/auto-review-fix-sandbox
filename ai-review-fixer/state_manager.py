@@ -8,56 +8,66 @@ import json
 import os
 from pathlib import Path
 
-STATE_FILE = Path(__file__).parent / "state.json"
+_DEFAULT_STATE_FILE = Path(__file__).parent / "state.json"
 
 
-def _load() -> dict:
-    if STATE_FILE.exists():
-        try:
-            with open(STATE_FILE, encoding="utf-8") as f:
-                return json.load(f)
-        except json.JSONDecodeError:
-            return {}
-    return {}
+class StateManager:
+    """PR ごとの修正試行回数と処理済みレビュー ID を state.json に永続化する。"""
 
+    def __init__(self, state_file: Path = _DEFAULT_STATE_FILE) -> None:
+        self._state_file = state_file
 
-def _save(state: dict) -> None:
-    tmp_file = STATE_FILE.with_suffix(".tmp")
-    with open(tmp_file, "w", encoding="utf-8") as f:
-        json.dump(state, f, indent=2)
-    os.replace(tmp_file, STATE_FILE)
+    # ------------------------------------------------------------------
+    # Public API
+    # ------------------------------------------------------------------
 
+    def get_fix_attempts(self, pr_number: int) -> int:
+        state = self._load()
+        return state.get(self._key(pr_number), {}).get("fix_attempts", 0)
 
-def _pr_key(pr_number: int) -> str:
-    return f"pr_{pr_number}"
+    def get_processed_review_ids(self, pr_number: int) -> list[str]:
+        state = self._load()
+        return state.get(self._key(pr_number), {}).get("processed_review_ids", [])
 
+    def record_fix(self, pr_number: int, review_ids: list) -> int:
+        """修正完了を記録し、新しい fix_attempts の値を返す。"""
+        state = self._load()
+        key = self._key(pr_number)
+        entry = state.get(key, {"fix_attempts": 0, "processed_review_ids": []})
+        entry["fix_attempts"] += 1
+        for rid in review_ids:
+            if rid not in entry["processed_review_ids"]:
+                entry["processed_review_ids"].append(rid)
+        state[key] = entry
+        self._save(state)
+        return entry["fix_attempts"]
 
-def get_fix_attempts(pr_number: int) -> int:
-    state = _load()
-    return state.get(_pr_key(pr_number), {}).get("fix_attempts", 0)
+    def reset_pr(self, pr_number: int) -> None:
+        """PRの状態をリセットする（テスト用）。"""
+        state = self._load()
+        state.pop(self._key(pr_number), None)
+        self._save(state)
 
+    # ------------------------------------------------------------------
+    # Private helpers
+    # ------------------------------------------------------------------
 
-def get_processed_review_ids(pr_number: int) -> list[str]:
-    state = _load()
-    return state.get(_pr_key(pr_number), {}).get("processed_review_ids", [])
+    def _load(self) -> dict:
+        if self._state_file.exists():
+            try:
+                with open(self._state_file, encoding="utf-8") as f:
+                    return json.load(f)
+            except json.JSONDecodeError:
+                return {}
+        return {}
 
+    def _save(self, state: dict) -> None:
+        self._state_file.parent.mkdir(parents=True, exist_ok=True)
+        tmp_file = self._state_file.with_suffix(".tmp")
+        with open(tmp_file, "w", encoding="utf-8") as f:
+            json.dump(state, f, indent=2)
+        os.replace(tmp_file, self._state_file)
 
-def record_fix(pr_number: int, review_ids: list[str]) -> int:
-    """修正完了を記録し、新しい fix_attempts の値を返す。"""
-    state = _load()
-    key = _pr_key(pr_number)
-    entry = state.get(key, {"fix_attempts": 0, "processed_review_ids": []})
-    entry["fix_attempts"] += 1
-    for rid in review_ids:
-        if rid not in entry["processed_review_ids"]:
-            entry["processed_review_ids"].append(rid)
-    state[key] = entry
-    _save(state)
-    return entry["fix_attempts"]
-
-
-def reset_pr(pr_number: int) -> None:
-    """PRの状態をリセットする（テスト用）。"""
-    state = _load()
-    state.pop(_pr_key(pr_number), None)
-    _save(state)
+    @staticmethod
+    def _key(pr_number: int) -> str:
+        return f"pr_{pr_number}"

@@ -87,3 +87,82 @@ PR #20・#21でCodeRabbitとのやり取りが6往復以上に膨らんだ。根
 - [x] 6.2.3 orchestrator.py・claude_runner.py の対応する変更
   - `orchestrator.py`: `_process_pr_patch_mode()` で2段階実行、`_finalize_run()` で共通後処理
   - `config.yaml`: `patch_proposal_mode: false`（デフォルト off）
+
+## Phase 7: jj-start-change dirty tree guard
+
+**前提条件: Phase 6 (テスト整備 PR #25) のマージ後に着手**
+
+### 背景
+
+Phase 6 のテスト整備作業中に、旧セッションの作業コピー（編集途中ファイルを含む）の上に
+そのまま新しい作業を重ねてしまった。その結果、push 時に第4層 guard（`jj-push-safe.sh`）に
+弾かれた後、`jj rebase -d main@origin` で事後リベースして回避する経路が使われた。
+
+### 問題の構造（dirty working tree problem）
+
+```text
+旧 change（前セッション残留ファイルあり）
+    │
+    └── 新セッション: そのまま編集
+              ↓
+         push → 第4層 guard に弾かれる
+              ↓
+         jj rebase で履歴だけ修正 ← 抜け穴
+              ↓
+         push 通過（履歴だけ新しい、内容は汚染済み）
+```
+
+### なぜ jj rebase 禁止は不採用か
+
+Jujutsu の核心機能は「履歴を後から自由に書き換える」こと。
+rebase 禁止は jj の強みを潰す上に、将来の PR 修正・stack 修正・review fix で
+rebase が必須になる場面がある。
+
+### 修正方針: 入口でのチェック（Layer 5）
+
+問題の根本は「作業開始時に working tree が汚れている」こと。
+**`jj-start-change` スクリプトに dirty tree guard を追加する。**
+
+```text
+Layer 1: git 直接実行ブロック           (validate-command.exe)
+Layer 2: jj new main ブロック           (validate-command.exe)
+Layer 3: jj edit main ブロック          (validate-command.exe)
+Layer 4: push 前 ancestor guard        (jj-push-safe.sh)
+Layer 5: start-change dirty tree guard  (jj-start-change.sh) ← 追加
+```
+
+`jj-start-change` 改良版の骨子:
+
+```bash
+#!/usr/bin/env bash
+set -e
+
+# Working copy に未記録の変更があれば中断する（description の有無に関係なくチェック）
+changes=$(jj diff --stat 2>/dev/null || true)
+if [ -n "$changes" ]; then
+  echo "ERROR: Working copy is dirty (uncommitted changes remain)."
+  echo "前セッションのファイルが残っています。"
+  echo ""
+  echo "解決方法:"
+  echo "  jj abandon @      # 変更を破棄して前の change に戻る"
+  echo "  jj restore        # ファイルを元に戻す"
+  exit 1
+fi
+
+jj git fetch
+jj new main@origin
+```
+
+### 将来の発展: jj workspace
+
+より根本的な解決策として `jj workspace add` による完全分離がある。
+1タスク = 1 workspace にすることで旧ファイルの物理的混入が起きなくなる。
+現行 workflow との統合変更が必要なため、別タスクとして検討する。
+
+### 実装タスク
+
+- [ ] 7.1 `jj-start-change` スクリプトを新規作成（`.claude/scripts/jj-start-change.sh`）
+- [ ] 7.2 dirty tree 検出ロジックの実装とエラーメッセージ整備
+- [ ] 7.3 `package.json` の `jj-start-change` スクリプトを新ファイルに向ける
+- [ ] 7.4 動作確認（clean/dirty 両ケース）
+- [ ] 7.5 `ai/rules/VCS_JUJUTSU.md` の作業開始手順を更新

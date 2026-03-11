@@ -14,3 +14,24 @@ jobs:
         run: npm install --no-save typescript @types/node
       - name: Type check
         run: npx tsc --noEmit
+
+  python-lint-and-test:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ai-review-fixer
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install dependencies
+        run: pip install -r requirements.txt -r requirements-dev.txt
+      - name: Lint (ruff)
+        run: ruff check .
+      - name: Lint scripts/ (ruff)
+        working-directory: ${{ github.workspace }}
+        run: ruff check scripts/ --config ai-review-fixer/pyproject.toml
+      - name: Test (pytest, excluding e2e)
+        run: pytest tests/ -m "not e2e" -v --cov=. --cov-report=term-missing --cov-fail-under=80

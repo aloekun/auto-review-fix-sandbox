@@ -139,3 +139,33 @@
 - [ ] 5.3.1 `state.json` の `fix_attempts` を手動で `max_fix_attempts - 1` に設定
 - [ ] 5.3.2 次のサイクルで上限到達コメントが PR に投稿されることを確認
 - [ ] 5.3.3 上限後はデーモンがそのPRをスキップすることを確認
+
+## Phase 6: テスト整備 + Ruff 導入 (完了)
+
+- [x] 6.1 `pyproject.toml` 作成 (pytest / coverage / ruff 設定)
+- [x] 6.2 `requirements-dev.txt` 作成 (pytest-cov, hypothesis, pytest-mock, ruff)
+- [x] 6.3 DI リファクタリング: `interfaces.py` (Protocol 定義)
+- [x] 6.4 DI リファクタリング: `git_client.py` (GitClient クラス)
+- [x] 6.5 DI リファクタリング: `review_collector.py` → GHClient クラス化
+- [x] 6.6 DI リファクタリング: `claude_runner.py` → ClaudeRunner クラス化
+- [x] 6.7 DI リファクタリング: `state_manager.py` → StateManager クラス化
+- [x] 6.8 DI リファクタリング: `context_builder.py` → ContextBuilder クラス化
+- [x] 6.9 DI リファクタリング: `run_logger.py` → RunLogger クラス化
+- [x] 6.10 DI リファクタリング: `orchestrator.py` → Orchestrator クラス化
+- [x] 6.11 テストインフラ: `tests/` ディレクトリ構造作成
+- [x] 6.12 テストインフラ: `FakeGHClient`, `FakeClaudeRunner` 実装
+- [x] 6.13 ユニットテスト: 全8モジュール (93テスト)
+- [x] 6.14 プロパティテスト: report_builder, state_manager, prompt_builder (Hypothesis)
+- [x] 6.15 統合テスト: orchestrator (正常/コミットなし/max_attempts/retry)
+- [x] 6.16 E2E テストスケルトン (E2E_GITHUB_REPO 未設定時はスキップ)
+- [x] 6.17 CI 更新: python-lint-and-test ジョブ追加
+- [x] 6.18 `package.json` に py-* スクリプト追加
+
+### Phase 6 レビュー
+
+| 指標 | 結果 |
+|------|------|
+| テスト数 | 93 passed (e2e 1件 deselected) |
+| カバレッジ | 92.06% (要件 80% クリア) |
+| Ruff | All checks passed |
+| Python バージョン | 3.10 互換 (timezone.utc 使用) |

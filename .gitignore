@@ -17,3 +17,5 @@ ai-review-fixer/logs/
 ai-review-fixer/runs/
 __pycache__/
 *.pyc
+.coverage
+.hypothesis/
