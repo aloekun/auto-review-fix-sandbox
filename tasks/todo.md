@@ -177,3 +177,35 @@
 - [x] 7.3 `package.json` の `jj-start-change` を `bash .claude/scripts/jj-start-change.sh` に変更
 - [x] 7.4 動作確認（dirty ケース: ERROR で停止を確認済み）
 - [x] 7.5 `ai/rules/VCS_JUJUTSU.md` 更新（ガード層構成表・エラー対処法を追加）
+
+## Phase 8: フィードバックループ完結（request_review 抽象化）
+
+**前提条件: Phase 7 (PR #28) のマージ後に着手 → マージ済み**
+
+- [x] 8.1 `GHClient.request_review()` を追加（`ai-review-fixer/review_collector.py`）
+  - `reviewer_bot == "coderabbitai[bot]"` → `@coderabbitai review` コメントを投稿
+  - 将来の拡張用の else pass で OK
+- [x] 8.2 `_finalize_run()` に呼び出しを追加（`ai-review-fixer/orchestrator.py`）
+  - `reviewer_bot` 引数を追加し、committed=True の場合のみ `request_review()` を呼ぶ
+  - max_attempts 到達時は `request_review()` を呼ばない
+- [x] 8.3 commit message に `[ai-autofix]` タグ付与（`ai-review-fixer/prompt_builder.py`）
+  - `build_prompt` / `build_patch_verification_prompt` の commit 指示部分を更新
+- [x] 8.4 `FakeGHClient` に `request_review` stub を追加し、ユニットテスト更新
+  - `tests/unit/test_orchestrator.py` — committed=True/False 両ケース追加
+  - `tests/unit/test_review_collector.py` — coderabbitai/unknown-bot 両ケース追加
+  - `interfaces.py` の `GHClientProtocol` にも `request_review` 追加
+  - 97 passed, 1 deselected (e2e) / coverage 85.90%
+- [x] 8.5 E2E テストで `@coderabbitai review` コメントが投稿されることを確認
+  - `tests/e2e/test_full_flow.py` に検証3として追加
+
+### Phase 8 レビュー
+
+| 指標 | 結果 |
+|------|------|
+| テスト数 | 97 passed (e2e 1件 deselected) |
+| カバレッジ | 85.90% (要件 80% クリア) |
+| Ruff | All checks passed |
+
+### Phase 8 CodeRabbit 指摘対応
+
+- [x] **Major**: `orchestrator.py` `_finalize_run()` — `request_review()` を max_attempts チェックより前に移動し、成功コミット時は常に呼ばれるよう修正。try/except で非致命的エラーをハンドリング。

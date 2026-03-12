@@ -80,7 +80,7 @@ Only after passing Step 3, run:
 
 ```
 git add -A
-git commit -m "fix[{fix_attempt}]: address review comments"
+git commit -m "fix[{fix_attempt}]: address review comments [ai-autofix]"
 git push origin {branch}
 ```
 
@@ -241,7 +241,7 @@ Answer these questions for each changed file (a "yes" answer means a problem was
 ### Step 4 — Commit & Push
 ```
 git add -A
-git commit -m "fix[{fix_attempt}]: address review comments"
+git commit -m "fix[{fix_attempt}]: address review comments [ai-autofix]"
 git push origin {branch}
 ```
 

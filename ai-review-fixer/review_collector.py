@@ -163,3 +163,13 @@ class GHClient:
             encoding="utf-8",
             timeout=60,
         )
+
+    def request_review(
+        self, owner: str, repo: str, pr_number: int, reviewer_bot: str
+    ) -> None:
+        """修正後に reviewer へ再レビューを依頼する。"""
+        if reviewer_bot == "coderabbitai[bot]":
+            self.post_pr_comment(owner, repo, pr_number, "@coderabbitai review")
+        else:
+            # 将来: GitHub reviewers API / 他ボットのコメントトリガー
+            pass

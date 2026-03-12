@@ -20,6 +20,7 @@ class FakeGHClient:
 
     # 呼び出し記録（アサート用）
     posted_comments: list[tuple[int, str]] = field(default_factory=list)
+    review_requests: list[tuple[int, str]] = field(default_factory=list)
 
     def get_open_prs(self, owner: str, repo: str) -> list[int]:  # noqa: ARG002
         return list(self.open_prs)
@@ -42,3 +43,8 @@ class FakeGHClient:
         self, owner: str, repo: str, pr_number: int, body: str  # noqa: ARG002
     ) -> None:
         self.posted_comments.append((pr_number, body))
+
+    def request_review(
+        self, owner: str, repo: str, pr_number: int, reviewer_bot: str  # noqa: ARG002
+    ) -> None:
+        self.review_requests.append((pr_number, reviewer_bot))

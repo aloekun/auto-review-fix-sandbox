@@ -110,3 +110,21 @@ def test_post_pr_comment_calls_gh(client, mocker):
     args = mock.call_args[0][0]
     assert "gh" in args
     assert "hello" in args
+
+
+# --- request_review ---
+
+def test_request_review_coderabbitai_posts_comment(client, mocker):
+    """reviewer_bot == 'coderabbitai[bot]' のとき @coderabbitai review コメントを投稿する。"""
+    mock = mocker.patch("review_collector.subprocess.run")
+    client.request_review("owner", "repo", 1, "coderabbitai[bot]")
+    mock.assert_called_once()
+    args = mock.call_args[0][0]
+    assert "@coderabbitai review" in args
+
+
+def test_request_review_unknown_bot_does_nothing(client, mocker):
+    """未知の reviewer_bot のときは何も実行しない。"""
+    mock = mocker.patch("review_collector.subprocess.run")
+    client.request_review("owner", "repo", 1, "unknown-bot")
+    mock.assert_not_called()

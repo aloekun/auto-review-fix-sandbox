@@ -30,6 +30,10 @@ class GHClientProtocol(Protocol):
         self, owner: str, repo: str, pr_number: int, body: str
     ) -> None: ...
 
+    def request_review(
+        self, owner: str, repo: str, pr_number: int, reviewer_bot: str
+    ) -> None: ...
+
 
 class GitClientProtocol(Protocol):
     def run(
