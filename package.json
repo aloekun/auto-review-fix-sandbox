@@ -8,7 +8,7 @@
     "jj-diff": "jj diff",
     "jj-describe": "jj describe",
     "jj-new": "jj new",
-    "jj-start-change": "jj git fetch && jj new main@origin",
+    "jj-start-change": "bash .claude/scripts/jj-start-change.sh",
     "jj-squash": "jj squash",
     "jj-bookmark": "jj bookmark",
     "jj-rebase": "jj rebase",
