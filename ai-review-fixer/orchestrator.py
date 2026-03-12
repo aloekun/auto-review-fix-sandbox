@@ -276,6 +276,7 @@ class Orchestrator:
             repo=repo,
             attempt_number=attempt_number,
             max_attempts=max_attempts,
+            reviewer_bot=reviewer_bot,
             prompt=prompt,
             new_reviews=new_reviews,
             new_inline_comments=new_inline_comments,
@@ -430,6 +431,7 @@ class Orchestrator:
             repo=repo,
             attempt_number=attempt_number,
             max_attempts=max_attempts,
+            reviewer_bot=reviewer_bot,
             prompt=proposal_prompt,
             new_reviews=new_reviews,
             new_inline_comments=new_inline_comments,
@@ -450,6 +452,7 @@ class Orchestrator:
         repo: str,
         attempt_number: int,
         max_attempts: int,
+        reviewer_bot: str,
         prompt: str,
         new_reviews: list,
         new_inline_comments: list,
@@ -540,6 +543,19 @@ class Orchestrator:
         print(
             f"[orchestrator] PR #{pr_number}: posted fix report comment.", flush=True
         )
+
+        try:
+            self._gh.request_review(owner, repo, pr_number, reviewer_bot)
+            print(
+                f"[orchestrator] PR #{pr_number}: requested re-review from {reviewer_bot}.",
+                flush=True,
+            )
+        except Exception as exc:
+            print(
+                f"[orchestrator] PR #{pr_number}: request_review failed (non-fatal): {exc}",
+                file=sys.stderr,
+                flush=True,
+            )
 
         if new_attempt >= max_attempts:
             self._gh.post_pr_comment(

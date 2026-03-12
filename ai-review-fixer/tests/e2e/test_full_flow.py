@@ -121,3 +121,11 @@ def test_full_flow(
         f"but none was found. Posted comments: {comments!r}"
     )
     print(f"[e2e] Fix report comment found on PR #{e2e_test_pr}.")
+
+    # 検証 3: "@coderabbitai review" コメントが投稿された（再レビュー依頼）
+    review_request_comments = [c for c in comments if "@coderabbitai review" in c]
+    assert review_request_comments, (
+        f"Expected a PR comment containing '@coderabbitai review' on PR #{e2e_test_pr}, "
+        f"but none was found. Posted comments: {comments!r}"
+    )
+    print(f"[e2e] Re-review request comment found on PR #{e2e_test_pr}.")

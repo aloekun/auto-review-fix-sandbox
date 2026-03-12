@@ -181,3 +181,104 @@ def test_run_once_records_attempt_when_claude_fails(
 
     # 失敗でも attempt をカウントする（無限リトライ防止）
     assert sm.get_fix_attempts(1) == 1
+
+
+# --- request_review ---
+
+def test_request_review_called_when_committed(
+    base_config, tmp_path, sample_review
+):
+    """committed=True のとき request_review が1回呼ばれる。
+
+    mock_git は stdout="" を返すため commit_hash="" となり、
+    original_head_sha="aabbcc" と不一致 → committed=True。
+    """
+    pr_info = PRInfo(
+        number=1,
+        head_ref="main",
+        head_sha="aabbcc",
+        title="Test PR",
+        head_repo_url="https://github.com/test-owner/test-repo",
+    )
+    gh = FakeGHClient(
+        open_prs=[1],
+        pr_infos={1: pr_info},
+        reviews={1: [sample_review]},
+        review_comments={1: []},
+        pr_diffs={1: ""},
+    )
+    sm = StateManager(state_file=tmp_path / "state.json")
+    claude = FakeClaudeRunner(returncode=0, file_changes={})
+    mock_git = _make_mock_git()
+
+    orch = Orchestrator(
+        config=base_config,
+        gh_client=gh,
+        git_client=mock_git,
+        claude_runner=claude,
+        state_manager=sm,
+        base_dir=tmp_path,
+    )
+    orch._process_pr(
+        pr_number=1,
+        owner="test-owner",
+        repo="test-repo",
+        max_attempts=3,
+        reviewer_bot="coderabbitai[bot]",
+        workspace_dir=tmp_path,
+    )
+
+    assert gh.review_requests == [(1, "coderabbitai[bot]")]
+
+
+def test_request_review_not_called_when_no_commit(
+    base_config, tmp_path, sample_review
+):
+    """committed=False のとき request_review は呼ばれない。
+
+    mock_git が original_head_sha と同じ値を返すため committed=False。
+    """
+    from unittest.mock import MagicMock
+
+    fixed_sha = "aabbcc"
+    pr_info = PRInfo(
+        number=1,
+        head_ref="main",
+        head_sha=fixed_sha,
+        title="Test PR",
+        head_repo_url="https://github.com/test-owner/test-repo",
+    )
+    gh = FakeGHClient(
+        open_prs=[1],
+        pr_infos={1: pr_info},
+        reviews={1: [sample_review]},
+        review_comments={1: []},
+        pr_diffs={1: ""},
+    )
+    sm = StateManager(state_file=tmp_path / "state.json")
+    claude = FakeClaudeRunner(returncode=0, file_changes={})
+
+    # git log -1 --format=%H が fixed_sha を返すよう設定 → committed=False
+    mock_git = MagicMock()
+    mock_git.run.return_value = MagicMock(
+        returncode=0, stdout=fixed_sha + "\n", stderr=""
+    )
+
+    orch = Orchestrator(
+        config=base_config,
+        gh_client=gh,
+        git_client=mock_git,
+        claude_runner=claude,
+        state_manager=sm,
+        base_dir=tmp_path,
+    )
+    orch._process_pr(
+        pr_number=1,
+        owner="test-owner",
+        repo="test-repo",
+        max_attempts=3,
+        reviewer_bot="coderabbitai[bot]",
+        workspace_dir=tmp_path,
+    )
+
+    assert gh.review_requests == []
