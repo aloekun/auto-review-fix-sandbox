@@ -31,6 +31,7 @@
     "py-lint:all": "ruff check ai-review-fixer/ scripts/",
     "py-lint:all:fix": "ruff check ai-review-fixer/ scripts/ --fix",
     "py-test": "pytest ai-review-fixer/tests -m \"not e2e\" -v",
+    "py-test:e2e": "pytest ai-review-fixer/tests/e2e/ -m e2e -v -s -r s",
     "py-test:cov": "pytest ai-review-fixer/tests -m \"not e2e\" --cov=ai-review-fixer --cov-report=term-missing --cov-fail-under=80",
     "py-install-dev": "pip install -r ai-review-fixer/requirements.txt -r ai-review-fixer/requirements-dev.txt",
     "gh-reviews": "python scripts/fetch_pr_reviews.py --",
