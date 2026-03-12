@@ -102,7 +102,7 @@ pnpm jj-bookmark create feature/N-description
 
 ### dirty tree guard（第5層）でエラーになった場合
 
-```
+```text
 ERROR: Working copy is dirty (uncommitted changes remain).
 前セッションのファイルが残っています。
 ```

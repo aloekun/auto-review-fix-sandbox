@@ -177,5 +177,5 @@ jj new main@origin
 - [x] 7.1 `jj-start-change` スクリプトを新規作成（`.claude/scripts/jj-start-change.sh`）
 - [x] 7.2 dirty tree 検出ロジックの実装とエラーメッセージ整備
 - [x] 7.3 `package.json` の `jj-start-change` スクリプトを新ファイルに向ける
-- [x] 7.4 動作確認（dirty ケース: `pnpm jj-start-change` がエラーで停止することを確認。clean ケース: 次タスク開始時に検証）
+- [ ] 7.4 動作確認（dirty ケース: `pnpm jj-start-change` がエラーで停止することを確認。clean ケース: 次タスク開始時に検証）
 - [x] 7.5 `ai/rules/VCS_JUJUTSU.md` の作業開始手順を更新（ガード層構成表・エラー時の対処法を追加）
