@@ -169,3 +169,11 @@
 | カバレッジ | 92.06% (要件 80% クリア) |
 | Ruff | All checks passed |
 | Python バージョン | 3.10 互換 (timezone.utc 使用) |
+
+## Phase 7: jj-start-change dirty tree guard
+
+- [x] 7.1 `.claude/scripts/jj-start-change.sh` 新規作成
+- [x] 7.2 dirty tree 検出ロジック実装・エラーメッセージ整備
+- [x] 7.3 `package.json` の `jj-start-change` を `bash .claude/scripts/jj-start-change.sh` に変更
+- [x] 7.4 動作確認（dirty ケース: ERROR で停止を確認済み）
+- [x] 7.5 `ai/rules/VCS_JUJUTSU.md` 更新（ガード層構成表・エラー対処法を追加）

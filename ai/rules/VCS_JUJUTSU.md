@@ -29,9 +29,10 @@
 ### 新しい作業ブランチの作成
 
 ```bash
-# 1. 作業開始（origin/main を fetch してから新しい change を作成する）
+# 1. 作業開始（dirty tree guard → fetch → jj new main@origin を実行する）
 pnpm jj-start-change
-# 内部で: jj git fetch && jj new main@origin を実行
+# 内部で: working copy の汚染チェック → jj git fetch → jj new main@origin を実行
+# working copy に未記録の変更がある場合はエラーを出して中断する（第5層ガード）
 
 # 2. 実装作業を行う（working copy に自動反映される）
 
@@ -46,7 +47,7 @@ pnpm jj-push --bookmark feature/N-description --allow-new
 ```
 
 **重要**: `jj new main`、`pnpm jj-new main`、`jj edit main`、`pnpm jj-edit main` はブロックされる。必ず `pnpm jj-start-change` を使うこと。
-これにより origin/main を fetch してから change を作成するため、先祖返りを防止できる。
+これにより working copy の汚染チェック後に origin/main を fetch してから change を作成するため、先祖返りと残留ファイルの混入を防止できる。
 
 ### 既存ブランチへの追加コミット
 
@@ -87,6 +88,42 @@ pnpm jj-bookmark set main -r main@origin
 # 4. 以降は通常の feature ブランチ手順で進める
 pnpm jj-describe -m "feat(scope): 説明"
 pnpm jj-bookmark create feature/N-description
+```
+
+## ガード層の構成
+
+| 層 | 場所 | 役割 |
+|----|------|------|
+| Layer 1 | `validate-command.exe` | `git` コマンド直接実行をブロック |
+| Layer 2 | `validate-command.exe` | `jj new main` をブロック |
+| Layer 3 | `validate-command.exe` | `jj edit main` をブロック |
+| Layer 4 | `.claude/scripts/jj-push-safe.sh` | push 前に `main@origin` が祖先かチェック |
+| Layer 5 | `.claude/scripts/jj-start-change.sh` | 作業開始前に working copy が clean かチェック |
+
+### dirty tree guard（第5層）でエラーになった場合
+
+```text
+ERROR: Working copy is dirty (uncommitted changes remain).
+前セッションのファイルが残っています。
+```
+
+このエラーは、前のセッションで編集したファイルが working copy に残ったまま新しいタスクを開始しようとしたときに発生する。
+
+**変更を捨ててよい場合:**
+
+```bash
+jj abandon @   # 変更を破棄して前の change に戻る（取り消し不可）
+# または
+jj restore     # ファイルを元に戻す（変更は消去するが change は残る）
+```
+
+**変更を保持して続けたい場合（途中作業を PR にしたい等）:**
+
+```bash
+pnpm jj-describe -m 'feat(scope): description'
+pnpm jj-bookmark create feature/N-description
+pnpm jj-push --bookmark feature/N-description --allow-new
+# 以降は通常通り pnpm jj-start-change で新タスク開始
 ```
 
 ## 注意事項

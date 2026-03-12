@@ -88,6 +88,19 @@ PR #20・#21でCodeRabbitとのやり取りが6往復以上に膨らんだ。根
   - `orchestrator.py`: `_process_pr_patch_mode()` で2段階実行、`_finalize_run()` で共通後処理
   - `config.yaml`: `patch_proposal_mode: false`（デフォルト off）
 
+### Phase 6.3: E2Eテスト整備（PR #27）
+
+- [x] 6.3.1 テスト用 GitHub リポジトリ作成（`aloekun/test-review-fix-sandbox`）と `sample.py` 初期プッシュ
+- [x] 6.3.2 `conftest.py` を拡張（`.env.e2e` 自動読み込み、`e2e_workspace` / `e2e_test_pr` / `e2e_gh_client` フィクスチャ）
+  - `_GHClientWithSyntheticReviews`: GitHub の自己レビュー制限を回避する synthetic review 注入
+  - `_rmtree_robust()`: Windows の read-only `.git` ファイル対応の安全削除
+  - クローン先を `tmp/e2e/workspace-<uuid>/` に変更（プロジェクトローカル）
+- [x] 6.3.3 `test_full_flow.py` 実装（実 Orchestrator + real claude CLI によるフルフロー）
+  - PR HEAD SHA の変化 + "AI Auto Fix Report" コメントを検証
+- [x] 6.3.4 `package.json` に `py-test:e2e` スクリプト追加
+- [x] 6.3.5 `.gitignore` に `ai-review-fixer/.env.e2e` 追加
+- [x] 6.3.6 `docs/e2e-setup.md` 作成（セットアップ手順・トラブルシューティング）
+
 ## Phase 7: jj-start-change dirty tree guard
 
 **前提条件: Phase 6 (テスト整備 PR #25) のマージ後に着手**
@@ -161,8 +174,8 @@ jj new main@origin
 
 ### 実装タスク
 
-- [ ] 7.1 `jj-start-change` スクリプトを新規作成（`.claude/scripts/jj-start-change.sh`）
-- [ ] 7.2 dirty tree 検出ロジックの実装とエラーメッセージ整備
-- [ ] 7.3 `package.json` の `jj-start-change` スクリプトを新ファイルに向ける
-- [ ] 7.4 動作確認（clean/dirty 両ケース）
-- [ ] 7.5 `ai/rules/VCS_JUJUTSU.md` の作業開始手順を更新
+- [x] 7.1 `jj-start-change` スクリプトを新規作成（`.claude/scripts/jj-start-change.sh`）
+- [x] 7.2 dirty tree 検出ロジックの実装とエラーメッセージ整備
+- [x] 7.3 `package.json` の `jj-start-change` スクリプトを新ファイルに向ける
+- [ ] 7.4 動作確認（dirty ケース: `pnpm jj-start-change` がエラーで停止することを確認。clean ケース: 次タスク開始時に検証）
+- [x] 7.5 `ai/rules/VCS_JUJUTSU.md` の作業開始手順を更新（ガード層構成表・エラー時の対処法を追加）
