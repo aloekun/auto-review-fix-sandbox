@@ -60,11 +60,11 @@ class RunLogger:
         files_changed: list[str] = []
         if committed:
             try:
-                files_changed = self._get_changed_files(workspace_dir)
+                files_changed = self._get_changed_files(workspace_dir, original_head_sha)
             except Exception as exc:
                 print(f"[run_logger] Failed to get changed files: {exc}", flush=True)
             try:
-                diff_after = self._get_diff_after(workspace_dir)
+                diff_after = self._get_diff_after(workspace_dir, original_head_sha)
                 (run_dir / "diff_after.patch").write_text(diff_after, encoding="utf-8")
             except Exception as exc:
                 raise RuntimeError(
@@ -114,12 +114,14 @@ class RunLogger:
     def _get_commit_hash(self, workspace_dir: Path) -> str:
         return self._run_git(workspace_dir, "log", "-1", "--format=%H").strip()
 
-    def _get_changed_files(self, workspace_dir: Path) -> list:
-        stdout = self._run_git(workspace_dir, "show", "--name-only", "--format=", "HEAD")
+    def _get_changed_files(self, workspace_dir: Path, base_sha: str) -> list:
+        stdout = self._run_git(
+            workspace_dir, "diff", "--name-only", f"{base_sha}..HEAD"
+        )
         return [f for f in stdout.strip().split("\n") if f]
 
-    def _get_diff_after(self, workspace_dir: Path) -> str:
-        return self._run_git(workspace_dir, "show", "HEAD", "--patch")
+    def _get_diff_after(self, workspace_dir: Path, base_sha: str) -> str:
+        return self._run_git(workspace_dir, "diff", f"{base_sha}..HEAD")
 
 
 def _format_reviews_text(reviews: list, inline_comments: list) -> str:

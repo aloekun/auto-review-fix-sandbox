@@ -112,9 +112,9 @@ ERROR: Working copy is dirty (uncommitted changes remain).
 **変更を捨ててよい場合:**
 
 ```bash
-jj abandon @   # 変更を破棄して前の change に戻る（取り消し不可）
+pnpm jj-abandon @   # 変更を破棄して前の change に戻る（取り消し不可）
 # または
-jj restore     # ファイルを元に戻す（変更は消去するが change は残る）
+pnpm jj-restore     # ファイルを元に戻す（変更は消去するが change は残る）
 ```
 
 **変更を保持して続けたい場合（途中作業を PR にしたい等）:**

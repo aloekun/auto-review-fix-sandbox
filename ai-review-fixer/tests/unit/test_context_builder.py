@@ -70,10 +70,11 @@ def test_extract_function_names_python(cb):
 
 
 def test_extract_function_names_excludes_generic(cb):
-    diff = "+def get(x):\n+def main():\n"
+    diff = "+def get(x):\n+def main():\n+def calculate_total(x):\n"
     names = cb.extract_function_names_from_diff(diff)
     assert "get" not in names
     assert "main" not in names
+    assert "calculate_total" in names  # non-excluded name is still extracted
 
 
 def test_extract_function_names_from_hunk_header(cb):

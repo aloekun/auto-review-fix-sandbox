@@ -187,7 +187,7 @@
   - 将来の拡張用の else pass で OK
 - [x] 8.2 `_finalize_run()` に呼び出しを追加（`ai-review-fixer/orchestrator.py`）
   - `reviewer_bot` 引数を追加し、committed=True の場合のみ `request_review()` を呼ぶ
-  - max_attempts 到達時は `request_review()` を呼ばない
+  - max_attempts 到達時も `request_review()` を呼ぶ（CR 指摘対応: max_attempts チェックより前に移動）
 - [x] 8.3 commit message に `[ai-autofix]` タグ付与（`ai-review-fixer/prompt_builder.py`）
   - `build_prompt` / `build_patch_verification_prompt` の commit 指示部分を更新
 - [x] 8.4 `FakeGHClient` に `request_review` stub を追加し、ユニットテスト更新
