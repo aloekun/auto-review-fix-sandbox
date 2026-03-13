@@ -13,6 +13,7 @@
     "jj-bookmark": "jj bookmark",
     "jj-rebase": "jj rebase",
     "jj-edit": "jj edit",
+    "jj-abandon": "jj abandon",
     "jj-restore": "jj restore",
     "jj-file-show": "jj file show",
     "jj-fetch": "jj git fetch",
