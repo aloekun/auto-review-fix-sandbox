@@ -73,22 +73,24 @@ class ClaudeRunner:
         with popen_proc as proc:
             assert proc.stdin is not None
             assert proc.stdout is not None
+            stdin = proc.stdin
+            stdout = proc.stdout
 
             writer_error: list[Exception] = []
 
             def _write_stdin() -> None:
                 try:
-                    proc.stdin.write(prompt)
+                    stdin.write(prompt)
                 except Exception as exc:
                     writer_error.append(exc)
                 finally:
                     try:
-                        proc.stdin.close()
+                        stdin.close()
                     except Exception as exc:
                         writer_error.append(exc)
 
             def _read_stdout() -> None:
-                for line in proc.stdout:
+                for line in stdout:
                     print(line, end="", flush=True)
 
             # stdin 書き込みと stdout 読み取りを別スレッドで行いデッドロックを防ぐ。
