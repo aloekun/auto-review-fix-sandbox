@@ -183,7 +183,11 @@ class ContextBuilder:
             / "diff_after.patch"
         )
         if diff_file.exists():
-            return diff_file.read_text(encoding="utf-8")
+            text = diff_file.read_text(encoding="utf-8")
+            limit = 50_000
+            if len(text) > limit:
+                text = text[:limit] + f"\n\n... [diff truncated at {limit} chars] ..."
+            return text
         return None
 
 

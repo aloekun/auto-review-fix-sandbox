@@ -224,7 +224,7 @@ git diff
 ```
 Read the output carefully. Also read the **full content** of every changed file:
 ```
-git diff --name-only | xargs cat
+git diff --name-only -z | xargs -0 cat
 ```
 
 ### Step 2 — Verification Checklist
