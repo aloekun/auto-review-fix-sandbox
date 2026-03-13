@@ -30,6 +30,8 @@ jobs:
         run: pip install -r requirements.txt -r requirements-dev.txt
       - name: Lint (ruff)
         run: ruff check .
+      - name: Type check (mypy)
+        run: mypy --config-file pyproject.toml .
       - name: Lint scripts/ (ruff)
         working-directory: ${{ github.workspace }}
         run: ruff check scripts/ --config ai-review-fixer/pyproject.toml

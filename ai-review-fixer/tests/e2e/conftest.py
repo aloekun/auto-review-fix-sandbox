@@ -22,6 +22,7 @@ from pathlib import Path
 
 import pytest
 
+from interfaces import GHClientProtocol
 from review_collector import GHClient, PRInfo, Review
 
 # ---------------------------------------------------------------------------
@@ -323,9 +324,14 @@ class _GHClientWithSyntheticReviews:
     ) -> None:
         self._real.post_pr_comment(owner, repo, pr_number, body)
 
+    def request_review(
+        self, owner: str, repo: str, pr_number: int, reviewer_bot: str
+    ) -> None:
+        self._real.request_review(owner, repo, pr_number, reviewer_bot)
+
 
 @pytest.fixture
-def e2e_gh_client(e2e_test_pr: int) -> _GHClientWithSyntheticReviews:
+def e2e_gh_client(e2e_test_pr: int) -> GHClientProtocol:
     """
     実 GHClient にシンセティックレビューを注入した E2E 用クライアント。
     open_prs_override でテスト対象 PR のみを返し、他の PR に誤適用されることを防ぐ。

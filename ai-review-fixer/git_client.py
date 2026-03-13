@@ -16,4 +16,4 @@ class GitClient:
         cwd: Path | None = None,
         **kwargs: object,
     ) -> subprocess.CompletedProcess:
-        return subprocess.run(args, cwd=cwd, **kwargs)
+        return subprocess.run(args, cwd=cwd, **kwargs)  # type: ignore[call-overload]
