@@ -1,0 +1,32 @@
+# Normalize line endings in the repository.
+# Source code, configuration, and documentation: LF everywhere.
+# Other text files (.txt etc.): platform-native via text=auto.
+
+# Default: auto-detect text vs binary
+* text=auto
+
+# Source code — always LF
+*.py    text eol=lf
+*.ts    text eol=lf
+*.js    text eol=lf
+*.json  text eol=lf
+*.yaml  text eol=lf
+*.yml   text eol=lf
+*.sh    text eol=lf
+*.toml  text eol=lf
+*.cfg   text eol=lf
+*.ini   text eol=lf
+
+# Markdown and documentation — LF (AI tools and Unix tools work best with LF)
+*.md    text eol=lf
+
+# Binary files — no conversion
+*.png   binary
+*.jpg   binary
+*.jpeg  binary
+*.gif   binary
+*.ico   binary
+*.exe   binary
+*.dll   binary
+*.whl   binary
+*.pyc   binary
