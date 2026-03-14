@@ -12,7 +12,8 @@ from tests.fakes.fake_gh_client import FakeGHClient
 @pytest.fixture
 def base_config():
     return {
-        "repo": {"owner": "test-owner", "name": "test-repo"},
+        "owner": "test-owner",
+        "repos": {"include": ["test-repo"]},
         "daemon": {
             "max_fix_attempts": 3,
             "workspace_dir": "../tmp/daemon-workspace",
@@ -86,9 +87,97 @@ def _make_mock_git():
 # --- no open PRs ---
 
 def test_run_once_does_nothing_when_no_open_prs(base_config, tmp_path):
-    gh = FakeGHClient(open_prs=[])
+    gh = FakeGHClient(open_prs=[], repos=["test-repo"])
     orch = make_orchestrator(base_config, tmp_path, gh, FakeClaudeRunner())
     orch.run_once()  # should not raise
+
+
+# --- no repos found ---
+
+def test_run_once_does_nothing_when_no_repos_found(base_config, tmp_path):
+    """list_repos が空リストを返すとき何もしない。"""
+    gh = FakeGHClient(repos=[])  # list_repos returns []
+    claude = FakeClaudeRunner()
+    orch = make_orchestrator(base_config, tmp_path, gh, claude)
+    orch.run_once()
+    assert claude.prompts_received == []
+    # リポジトリが存在しないため get_open_prs は一度も呼ばれない
+    assert gh.repos_queried == []
+    # list_repos は設定された owner で呼ばれること
+    assert gh.list_repos_owners_called == ["test-owner"]
+
+
+# --- multi-repo iteration ---
+
+def test_run_once_iterates_multiple_repos(base_config, tmp_path):
+    """repos.include を指定しないとき、list_repos で返ったリポジトリを全て処理する。"""
+    all_repos_config = {
+        **base_config,
+        "repos": {"include": []},  # empty = all repos
+    }
+    # 2つのリポジトリ、どちらもオープン PR なし
+    gh = FakeGHClient(open_prs=[], repos=["repo-a", "repo-b"])
+    claude = FakeClaudeRunner()
+    orch = make_orchestrator(all_repos_config, tmp_path, gh, claude)
+    orch.run_once()
+    # 両リポジトリの PR リストが照会されたことを確認する
+    queried_repos = [repo for _, repo in gh.repos_queried]
+    assert sorted(queried_repos) == ["repo-a", "repo-b"]
+    # list_repos は設定された owner で呼ばれること
+    assert gh.list_repos_owners_called == ["test-owner"]
+
+
+def test_run_once_filters_repos_with_include(base_config, tmp_path):
+    """repos.include が指定されているとき、含まれるリポジトリのみ処理する。"""
+    # list_repos は 3つを返すが include は test-repo のみ
+    gh = FakeGHClient(open_prs=[], repos=["test-repo", "other-repo", "another-repo"])
+    claude = FakeClaudeRunner()
+    orch = make_orchestrator(base_config, tmp_path, gh, claude)
+    orch.run_once()
+    # test-repo のみ照会され、other-repo / another-repo は除外されること
+    queried_repos = [repo for _, repo in gh.repos_queried]
+    assert queried_repos == ["test-repo"]
+    # list_repos は設定された owner で呼ばれること
+    assert gh.list_repos_owners_called == ["test-owner"]
+
+
+# --- repo-level error isolation ---
+
+def test_run_once_continues_after_repo_level_error(base_config, tmp_path):
+    """1つのリポジトリで ensure_workspace が失敗しても残りのリポジトリを処理し続ける。"""
+    from unittest.mock import MagicMock
+
+    all_repos_config = {**base_config, "repos": {"include": []}}
+    gh = FakeGHClient(open_prs=[], repos=["repo-a", "repo-bad", "repo-b"])
+    claude = FakeClaudeRunner()
+    sm = StateManager(state_file=tmp_path / "state.json")
+
+    # repo-bad のときだけ clone で例外を投げる mock_git を作る
+    def _git_side_effect(args, cwd=None, **_kwargs):  # noqa: ARG001
+        result = MagicMock(returncode=0, stdout="", stderr="")
+        if "clone" in args and "repo-bad" in args[-1]:
+            raise RuntimeError("clone failed for repo-bad")
+        return result
+
+    mock_git = MagicMock()
+    mock_git.run.side_effect = _git_side_effect
+
+    orch = Orchestrator(
+        config=all_repos_config,
+        gh_client=gh,
+        git_client=mock_git,
+        claude_runner=claude,
+        state_manager=sm,
+    )
+    # 例外が伝播しないこと
+    orch.run_once()
+
+    # repo-a と repo-b は get_open_prs まで到達していること
+    queried_repos = [repo for _, repo in gh.repos_queried]
+    assert "repo-a" in queried_repos
+    assert "repo-b" in queried_repos
+    # repo-bad はエラーで脱落しているため get_open_prs に到達しない
+    assert "repo-bad" not in queried_repos
 
 
 # --- max attempts guard ---
@@ -98,6 +187,7 @@ def test_run_once_skips_pr_when_max_attempts_reached(
 ):
     gh = FakeGHClient(
         open_prs=[1],
+        repos=["test-repo"],
         pr_infos={1: sample_pr_info},
         reviews={1: [sample_review]},
         review_comments={1: []},
@@ -106,7 +196,7 @@ def test_run_once_skips_pr_when_max_attempts_reached(
     sm = StateManager(state_file=tmp_path / "state.json")
     # max_fix_attempts = 3 に達したと見なす
     for _ in range(3):
-        sm.record_fix(1, ["r1"])
+        sm.record_fix("test-owner", "test-repo", 1, ["r1"])
 
     claude = FakeClaudeRunner()
     mock_git = _make_mock_git()
@@ -130,10 +220,11 @@ def test_run_once_skips_when_no_new_reviews(
 ):
     # すでに処理済みのレビューのみ
     sm = StateManager(state_file=tmp_path / "state.json")
-    sm.record_fix(1, [sample_review.id])
+    sm.record_fix("test-owner", "test-repo", 1, [sample_review.id])
 
     gh = FakeGHClient(
         open_prs=[1],
+        repos=["test-repo"],
         pr_infos={1: sample_pr_info},
         reviews={1: [sample_review]},
         review_comments={1: []},
@@ -161,6 +252,7 @@ def test_run_once_records_attempt_when_claude_fails(
     """Claude が非ゼロ exit を返した場合も attempt をカウントして無限リトライを防ぐ。"""
     gh = FakeGHClient(
         open_prs=[1],
+        repos=["test-repo"],
         pr_infos={1: sample_pr_info},
         reviews={1: [sample_review]},
         review_comments={1: []},
@@ -180,7 +272,7 @@ def test_run_once_records_attempt_when_claude_fails(
     orch.run_once()
 
     # 失敗でも attempt をカウントする（無限リトライ防止）
-    assert sm.get_fix_attempts(1) == 1
+    assert sm.get_fix_attempts("test-owner", "test-repo", 1) == 1
 
 
 # --- request_review ---
@@ -301,6 +393,7 @@ def test_reviews_from_other_bots_are_ignored(
     )
     gh = FakeGHClient(
         open_prs=[1],
+        repos=["test-repo"],
         pr_infos={1: sample_pr_info},
         reviews={1: [other_review]},
         review_comments={1: []},
@@ -397,3 +490,58 @@ def test_run_once_raises_when_reviewer_bots_is_string(base_config, tmp_path):
     orch = make_orchestrator(bad_config, tmp_path, gh, FakeClaudeRunner())
     with pytest.raises(TypeError, match="must be a list"):
         orch.run_once()
+
+
+# --- repos config validation ---
+
+
+def test_run_once_raises_when_repos_is_not_mapping(base_config, tmp_path):
+    """repos が mapping でない場合は TypeError を送出する。"""
+    bad_config = {**base_config, "repos": ["test-repo"]}
+    gh = FakeGHClient(open_prs=[])
+    orch = make_orchestrator(bad_config, tmp_path, gh, FakeClaudeRunner())
+    with pytest.raises(TypeError, match="'repos' must be a mapping"):
+        orch.run_once()
+
+
+def test_run_once_raises_when_repos_include_is_not_list(base_config, tmp_path):
+    """repos.include がリストでない場合は TypeError を送出する。"""
+    bad_config = {**base_config, "repos": {"include": "test-repo"}}
+    gh = FakeGHClient(open_prs=[])
+    orch = make_orchestrator(bad_config, tmp_path, gh, FakeClaudeRunner())
+    with pytest.raises(TypeError, match="'repos.include' must be a list"):
+        orch.run_once()
+
+
+# --- workspace parent directory creation ---
+
+
+def test_ensure_workspace_creates_parent_dirs(base_config, tmp_path):
+    """_ensure_workspace は owner ディレクトリが存在しなくてもクローンできる。"""
+    from unittest.mock import MagicMock
+
+    mock_git = MagicMock()
+    mock_git.run.return_value = MagicMock(returncode=0, stdout="", stderr="")
+
+    gh = FakeGHClient(open_prs=[], repos=["test-repo"])
+    sm = StateManager(state_file=tmp_path / "state.json")
+    orch = Orchestrator(
+        config=base_config,
+        gh_client=gh,
+        git_client=mock_git,
+        claude_runner=FakeClaudeRunner(),
+        state_manager=sm,
+    )
+
+    # owner ディレクトリが存在しない深いパスを workspace_dir として渡す
+    deep_workspace = tmp_path / "ws" / "test-owner" / "test-repo"
+    assert not deep_workspace.parent.exists()
+
+    orch._ensure_workspace(deep_workspace, "test-owner", "test-repo")
+
+    # 親ディレクトリが作成されていること
+    assert deep_workspace.parent.exists()
+    # git clone が呼ばれていること
+    clone_call_args = mock_git.run.call_args[0][0]
+    assert clone_call_args[0] == "git"
+    assert clone_call_args[1] == "clone"

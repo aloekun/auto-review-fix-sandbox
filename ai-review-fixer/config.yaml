@@ -1,6 +1,9 @@
-repo:
-  owner: aloekun
-  name: auto-review-fix-sandbox
+owner: aloekun
+
+repos:
+  # 空リスト = owner 配下の全リポジトリを対象にする
+  # 特定のリポジトリのみを対象にするには名前を列挙する
+  include: []
 
 daemon:
   poll_interval_seconds: 60

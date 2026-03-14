@@ -170,14 +170,25 @@ class ContextBuilder:
         return "\n".join(sections)
 
     def get_previous_fix_diff(
-        self, base_dir: Path, pr_number: int, previous_attempt: int
+        self,
+        base_dir: Path,
+        pr_number: int,
+        previous_attempt: int,
+        owner: str = "",
+        repo: str = "",
     ) -> str | None:
-        """前回の自動修正差分 (diff_after.patch) を返す。なければ None。"""
+        """前回の自動修正差分 (diff_after.patch) を返す。なければ None。
+
+        owner/repo を指定すると runs/{owner}/{repo}/pr-{N}/attempt-{M}/ を参照する。
+        省略時は runs/pr-{N}/attempt-{M}/ (後方互換)。
+        """
         if previous_attempt <= 0:
             return None
         diff_file = (
             base_dir
             / "runs"
+            / owner
+            / repo
             / f"pr-{pr_number}"
             / f"attempt-{previous_attempt}"
             / "diff_after.patch"

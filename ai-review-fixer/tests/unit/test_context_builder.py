@@ -151,3 +151,15 @@ def test_get_previous_fix_diff_returns_content(cb, tmp_path):
 
     result = cb.get_previous_fix_diff(tmp_path, pr_number=1, previous_attempt=1)
     assert result == "diff content"
+
+
+def test_get_previous_fix_diff_uses_owner_repo_namespace(cb, tmp_path):
+    """owner/repo を指定すると runs/{owner}/{repo}/pr-{N}/attempt-{M}/ を参照する。"""
+    patch_dir = tmp_path / "runs" / "my-org" / "my-repo" / "pr-1" / "attempt-1"
+    patch_dir.mkdir(parents=True)
+    (patch_dir / "diff_after.patch").write_text("namespaced diff", encoding="utf-8")
+
+    result = cb.get_previous_fix_diff(
+        tmp_path, pr_number=1, previous_attempt=1, owner="my-org", repo="my-repo"
+    )
+    assert result == "namespaced diff"

@@ -137,3 +137,31 @@ def test_request_review_unknown_bot_does_nothing(client, mocker):
     mock = mocker.patch("review_collector.subprocess.run")
     client.request_review("owner", "repo", 1, "unknown-bot")
     mock.assert_not_called()
+
+
+# --- list_repos ---
+
+
+def test_list_repos_returns_repo_names(client, mocker):
+    """list_repos がリポジトリ名の一覧を返す。"""
+    _mock_run(mocker, json.dumps([{"name": "repo1"}, {"name": "repo2"}]))
+    result = client.list_repos("my-org")
+    assert result == ["repo1", "repo2"]
+
+
+def test_list_repos_empty(client, mocker):
+    """リポジトリが存在しないとき空リストを返す。"""
+    _mock_run(mocker, json.dumps([]))
+    assert client.list_repos("my-org") == []
+
+
+def test_list_repos_uses_correct_gh_flags(client, mocker):
+    """--source と --no-archived フラグを使って gh repo list を呼び出す。"""
+    mock = _mock_run(mocker, json.dumps([{"name": "r"}]))
+    client.list_repos("my-org")
+    args = mock.call_args[0][0]
+    assert "repo" in args
+    assert "list" in args
+    assert "my-org" in args
+    assert "--source" in args
+    assert "--no-archived" in args

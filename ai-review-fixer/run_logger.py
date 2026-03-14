@@ -33,14 +33,19 @@ class RunLogger:
         diff_before: str,
         workspace_dir: Path,
         original_head_sha: str,
+        owner: str = "",
+        repo: str = "",
     ) -> dict:
         """
         実行アーティファクトを保存し、git情報を返す。
 
+        owner/repo を指定すると runs/{owner}/{repo}/pr-{N}/attempt-{M}/ を使う。
+        省略時は runs/pr-{N}/attempt-{M}/ (後方互換)。
+
         Returns:
             dict with keys: commit_hash, committed (bool), files_changed (list[str])
         """
-        run_dir = base_dir / "runs" / f"pr-{pr_number}" / f"attempt-{attempt}"
+        run_dir = base_dir / "runs" / owner / repo / f"pr-{pr_number}" / f"attempt-{attempt}"
         run_dir.mkdir(parents=True, exist_ok=True)
 
         (run_dir / "prompt.txt").write_text(prompt, encoding="utf-8")
@@ -78,10 +83,16 @@ class RunLogger:
             "files_changed": files_changed,
         }
 
-    def save_structured_log(self, base_dir: Path, log_data: dict) -> None:
-        """構造化JSONログを logs/YYYY-MM-DD/pr-{N}-run-{M}.json に保存する。"""
+    def save_structured_log(
+        self, base_dir: Path, log_data: dict, owner: str = "", repo: str = ""
+    ) -> None:
+        """構造化JSONログを保存する。
+
+        owner/repo を指定すると logs/YYYY-MM-DD/{owner}/{repo}/pr-{N}-run-{M}.json を使う。
+        省略時は logs/YYYY-MM-DD/pr-{N}-run-{M}.json (後方互換)。
+        """
         date_str = datetime.now(timezone.utc).strftime("%Y-%m-%d")
-        log_dir = base_dir / "logs" / date_str
+        log_dir = base_dir / "logs" / date_str / owner / repo
         log_dir.mkdir(parents=True, exist_ok=True)
 
         pr = log_data["pr"]

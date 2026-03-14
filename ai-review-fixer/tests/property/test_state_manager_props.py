@@ -8,6 +8,9 @@ from hypothesis import strategies as st
 
 from state_manager import StateManager
 
+_OWNER = "test-owner"
+_REPO = "test-repo"
+
 
 def _sm() -> StateManager:
     """一時ファイルを使った StateManager を生成する。"""
@@ -21,8 +24,8 @@ def test_record_fix_n_times_yields_n_attempts(n):
     """record_fix を n 回呼ぶと fix_attempts == n になる。"""
     sm = _sm()
     for i in range(n):
-        sm.record_fix(1, [str(i)])
-    assert sm.get_fix_attempts(1) == n
+        sm.record_fix(_OWNER, _REPO, 1, [str(i)])
+    assert sm.get_fix_attempts(_OWNER, _REPO, 1) == n
 
 
 @given(
@@ -37,8 +40,8 @@ def test_record_fix_n_times_yields_n_attempts(n):
 def test_all_review_ids_are_recorded(review_ids):
     """record_fix で渡した全 review_id が processed_review_ids に含まれる。"""
     sm = _sm()
-    sm.record_fix(1, review_ids)
-    processed = sm.get_processed_review_ids(1)
+    sm.record_fix(_OWNER, _REPO, 1, review_ids)
+    processed = sm.get_processed_review_ids(_OWNER, _REPO, 1)
     for rid in review_ids:
         assert rid in processed
 
@@ -52,8 +55,8 @@ def test_duplicate_review_ids_not_stored_twice(rid, n):
     """同じ review_id を複数回 record_fix しても重複して保存されない。"""
     sm = _sm()
     for _ in range(n):
-        sm.record_fix(1, [rid])
-    processed = sm.get_processed_review_ids(1)
+        sm.record_fix(_OWNER, _REPO, 1, [rid])
+    processed = sm.get_processed_review_ids(_OWNER, _REPO, 1)
     assert processed.count(rid) == 1
 
 
@@ -63,6 +66,6 @@ def test_independent_prs_do_not_interfere(pr):
     """あるPRへの記録が他のPRに影響しない。"""
     sm = _sm()
     other_pr = pr + 1
-    sm.record_fix(pr, ["r1"])
-    assert sm.get_fix_attempts(other_pr) == 0
-    assert sm.get_processed_review_ids(other_pr) == []
+    sm.record_fix(_OWNER, _REPO, pr, ["r1"])
+    assert sm.get_fix_attempts(_OWNER, _REPO, other_pr) == 0
+    assert sm.get_processed_review_ids(_OWNER, _REPO, other_pr) == []

@@ -209,3 +209,24 @@
 ### Phase 8 CodeRabbit 指摘対応
 
 - [x] **Major**: `orchestrator.py` `_finalize_run()` — `request_review()` を max_attempts チェックより前に移動し、成功コミット時は常に呼ばれるよう修正。try/except で非致命的エラーをハンドリング。
+
+## Phase 9: multi-repo サポート
+
+- [x] 9.1 `GHClient.list_repos(owner)` 追加 — `gh repo list --source --no-archived --json name`
+- [x] 9.2 `GHClientProtocol` に `list_repos` を追加、`FakeGHClient` / E2E conftest にも実装
+- [x] 9.3 `StateManager` キー形式変更: `pr_{N}` → `{owner}/{repo}/pr_{N}`（旧キー検出で stderr 警告）
+- [x] 9.4 `StateManagerProtocol` を新シグネチャに更新
+- [x] 9.5 `run_logger.save_run_artifacts()` / `save_structured_log()` にオーナー/リポジトリ引数追加
+- [x] 9.6 `context_builder.get_previous_fix_diff()` にオーナー/リポジトリ引数追加
+- [x] 9.7 `orchestrator.run_once()` でマルチリポジトリループを実装（`repos.include` 空 = 全リポジトリ）
+- [x] 9.8 `config.yaml` を `owner` + `repos.include` 形式に変更
+- [x] 9.9 全テスト通過 (115 passed)、ruff + mypy clean
+
+### Phase 9 レビュー
+
+| 指標 | 結果 |
+|------|------|
+| テスト数 | 115 passed |
+| Ruff | All checks passed |
+| mypy | Success: no issues found |
+| PR | https://github.com/aloekun/auto-review-fix-sandbox/pull/37 |
