@@ -31,7 +31,7 @@ def base_kwargs(base_review):
         "reviews": [base_review],
         "inline_comments": [],
         "fix_attempt": 1,
-        "reviewer_bot": "coderabbitai[bot]",
+        "reviewer_bots": ["coderabbitai[bot]"],
         "file_contents": {},
         "call_graph_context": "",
         "previous_fix_diff": None,
@@ -110,7 +110,7 @@ def test_patch_verification_prompt_contains_pr_number(base_review):
         pr_number=42,
         branch="feature/test",
         fix_attempt=1,
-        reviewer_bot="coderabbitai[bot]",
+        reviewer_bots=["coderabbitai[bot]"],
         reviews=[base_review],
         inline_comments=[],
     )
@@ -122,7 +122,7 @@ def test_patch_verification_prompt_mentions_commit(base_review):
         pr_number=42,
         branch="feature/test",
         fix_attempt=1,
-        reviewer_bot="coderabbitai[bot]",
+        reviewer_bots=["coderabbitai[bot]"],
         reviews=[base_review],
         inline_comments=[],
     )

@@ -20,7 +20,7 @@ def _build(**overrides):
         "reviews": [_review()],
         "inline_comments": [],
         "fix_attempt": 1,
-        "reviewer_bot": "coderabbitai[bot]",
+        "reviewer_bots": ["coderabbitai[bot]"],
         "file_contents": {},
         "call_graph_context": "",
         "previous_fix_diff": None,

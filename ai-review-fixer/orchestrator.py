@@ -72,7 +72,12 @@ class Orchestrator:
         owner = self._config["repo"]["owner"]
         repo = self._config["repo"]["name"]
         max_attempts = self._config["daemon"]["max_fix_attempts"]
-        reviewer_bot = self._config["reviewer_bot"]
+        reviewer_bots: list[str] = self._config["reviewer_bots"]
+        if not isinstance(reviewer_bots, list):
+            raise TypeError(
+                f"config.yaml: 'reviewer_bots' must be a list, "
+                f"got {type(reviewer_bots).__name__!r}."
+            )
         workspace_dir = (
             Path(__file__).parent / self._config["daemon"]["workspace_dir"]
         ).resolve()
@@ -93,7 +98,7 @@ class Orchestrator:
                         owner=owner,
                         repo=repo,
                         max_attempts=max_attempts,
-                        reviewer_bot=reviewer_bot,
+                        reviewer_bots=reviewer_bots,
                         workspace_dir=workspace_dir,
                     )
                 else:
@@ -102,7 +107,7 @@ class Orchestrator:
                         owner=owner,
                         repo=repo,
                         max_attempts=max_attempts,
-                        reviewer_bot=reviewer_bot,
+                        reviewer_bots=reviewer_bots,
                         workspace_dir=workspace_dir,
                     )
             except Exception as exc:
@@ -174,7 +179,7 @@ class Orchestrator:
         owner: str,
         repo: str,
         max_attempts: int,
-        reviewer_bot: str,
+        reviewer_bots: list[str],
         workspace_dir: Path,
     ) -> None:
         fix_attempts = self._state.get_fix_attempts(pr_number)
@@ -192,7 +197,7 @@ class Orchestrator:
         new_reviews = [
             r
             for r in reviews
-            if r.user_login == reviewer_bot
+            if r.user_login in reviewer_bots
             and r.state == "CHANGES_REQUESTED"
             and r.id not in processed_ids
         ]
@@ -200,7 +205,7 @@ class Orchestrator:
         if not new_reviews:
             print(
                 f"[orchestrator] PR #{pr_number}: "
-                f"no new CHANGES_REQUESTED reviews from {reviewer_bot}, skip.",
+                f"no new CHANGES_REQUESTED reviews from {reviewer_bots}, skip.",
                 flush=True,
             )
             return
@@ -251,7 +256,7 @@ class Orchestrator:
             reviews=new_reviews,
             inline_comments=new_inline_comments,
             fix_attempt=attempt_number,
-            reviewer_bot=reviewer_bot,
+            reviewer_bots=reviewer_bots,
             file_contents=file_contents,
             call_graph_context=call_graph_context,
             previous_fix_diff=previous_fix_diff,
@@ -276,7 +281,7 @@ class Orchestrator:
             repo=repo,
             attempt_number=attempt_number,
             max_attempts=max_attempts,
-            reviewer_bot=reviewer_bot,
+            reviewer_bots=reviewer_bots,
             prompt=prompt,
             new_reviews=new_reviews,
             new_inline_comments=new_inline_comments,
@@ -296,7 +301,7 @@ class Orchestrator:
         owner: str,
         repo: str,
         max_attempts: int,
-        reviewer_bot: str,
+        reviewer_bots: list[str],
         workspace_dir: Path,
     ) -> None:
         """Run 1 でパッチ生成のみ、Run 2 でパッチ検証 → commit を行う2段階モード。"""
@@ -315,7 +320,7 @@ class Orchestrator:
         new_reviews = [
             r
             for r in reviews
-            if r.user_login == reviewer_bot
+            if r.user_login in reviewer_bots
             and r.state == "CHANGES_REQUESTED"
             and r.id not in processed_ids
         ]
@@ -323,7 +328,7 @@ class Orchestrator:
         if not new_reviews:
             print(
                 f"[orchestrator] PR #{pr_number}: "
-                f"no new CHANGES_REQUESTED reviews from {reviewer_bot}, skip.",
+                f"no new CHANGES_REQUESTED reviews from {reviewer_bots}, skip.",
                 flush=True,
             )
             return
@@ -379,7 +384,7 @@ class Orchestrator:
             reviews=new_reviews,
             inline_comments=new_inline_comments,
             fix_attempt=attempt_number,
-            reviewer_bot=reviewer_bot,
+            reviewer_bots=reviewer_bots,
             file_contents=file_contents,
             call_graph_context=call_graph_context,
             previous_fix_diff=previous_fix_diff,
@@ -407,7 +412,7 @@ class Orchestrator:
             pr_number=pr_number,
             branch=pr_info.head_ref,
             fix_attempt=attempt_number,
-            reviewer_bot=reviewer_bot,
+            reviewer_bots=reviewer_bots,
             reviews=new_reviews,
             inline_comments=new_inline_comments,
         )
@@ -431,7 +436,7 @@ class Orchestrator:
             repo=repo,
             attempt_number=attempt_number,
             max_attempts=max_attempts,
-            reviewer_bot=reviewer_bot,
+            reviewer_bots=reviewer_bots,
             prompt=proposal_prompt,
             new_reviews=new_reviews,
             new_inline_comments=new_inline_comments,
@@ -452,7 +457,7 @@ class Orchestrator:
         repo: str,
         attempt_number: int,
         max_attempts: int,
-        reviewer_bot: str,
+        reviewer_bots: list[str],
         prompt: str,
         new_reviews: list,
         new_inline_comments: list,
@@ -544,18 +549,20 @@ class Orchestrator:
             f"[orchestrator] PR #{pr_number}: posted fix report comment.", flush=True
         )
 
-        try:
-            self._gh.request_review(owner, repo, pr_number, reviewer_bot)
-            print(
-                f"[orchestrator] PR #{pr_number}: requested re-review from {reviewer_bot}.",
-                flush=True,
-            )
-        except Exception as exc:
-            print(
-                f"[orchestrator] PR #{pr_number}: request_review failed (non-fatal): {exc}",
-                file=sys.stderr,
-                flush=True,
-            )
+        for bot in reviewer_bots:
+            try:
+                self._gh.request_review(owner, repo, pr_number, bot)
+                print(
+                    f"[orchestrator] PR #{pr_number}: requested re-review from {bot}.",
+                    flush=True,
+                )
+            except Exception as exc:
+                print(
+                    f"[orchestrator] PR #{pr_number}: "
+                    f"request_review({bot}) failed (non-fatal): {exc}",
+                    file=sys.stderr,
+                    flush=True,
+                )
 
         if new_attempt >= max_attempts:
             self._gh.post_pr_comment(

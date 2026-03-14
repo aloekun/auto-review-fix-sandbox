@@ -133,7 +133,7 @@ def e2e_config(e2e_repo: str, e2e_workspace: Path) -> dict:
             "workspace_dir": str(workspace),
             "patch_proposal_mode": False,
         },
-        "reviewer_bot": "coderabbitai[bot]",
+        "reviewer_bots": ["coderabbitai[bot]"],
     }
 
 

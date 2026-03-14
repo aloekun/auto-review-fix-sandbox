@@ -123,6 +123,15 @@ def test_request_review_coderabbitai_posts_comment(client, mocker):
     assert "@coderabbitai review" in args
 
 
+def test_request_review_chatgpt_codex_posts_comment(client, mocker):
+    """reviewer_bot == 'chatgpt-codex-connector' のとき @codex review コメントを投稿する。"""
+    mock = mocker.patch("review_collector.subprocess.run")
+    client.request_review("owner", "repo", 1, "chatgpt-codex-connector")
+    mock.assert_called_once()
+    args = mock.call_args[0][0]
+    assert "@codex review" in args
+
+
 def test_request_review_unknown_bot_does_nothing(client, mocker):
     """未知の reviewer_bot のときは何も実行しない。"""
     mock = mocker.patch("review_collector.subprocess.run")
