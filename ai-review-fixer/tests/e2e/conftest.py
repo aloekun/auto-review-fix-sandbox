@@ -122,11 +122,15 @@ def e2e_config(e2e_repo: str, e2e_workspace: Path) -> dict:
     workspace_dir に絶対パス (e2e_workspace / "clone") を指定する。
     Orchestrator 内部で Path(orchestrator.py の親) / workspace_dir が計算されるが、
     絶対パスが指定された場合は Python の Path 結合ルールにより絶対パスが優先される。
+
+    repos.include に対象リポジトリ名を指定する。
+    実際の git クローン先は workspace_dir/{owner}/{repo}/ になる。
     """
     owner, name = e2e_repo.split("/", 1)
     workspace = e2e_workspace / "clone"
     return {
-        "repo": {"owner": owner, "name": name},
+        "owner": owner,
+        "repos": {"include": [name]},
         "daemon": {
             "poll_interval_seconds": 60,
             "max_fix_attempts": 3,
@@ -288,6 +292,9 @@ class _GHClientWithSyntheticReviews:
 
     open_prs_override を指定すると get_open_prs() もオーバーライドされ、
     テスト対象 PR だけを返す（他のオープン PR に誤って適用されることを防ぐ）。
+
+    repos_override を指定すると list_repos() もオーバーライドされ、
+    テスト対象リポジトリ名だけを返す。
     """
 
     def __init__(
@@ -295,10 +302,14 @@ class _GHClientWithSyntheticReviews:
         real: GHClient,
         reviews: list[Review],
         open_prs_override: list[int] | None = None,
+        repos_override: list[str] | None = None,
+        owner_scope: str | None = None,
     ) -> None:
         self._real = real
         self._reviews = reviews
         self._open_prs_override = open_prs_override
+        self._repos_override = repos_override
+        self._owner_scope = owner_scope
 
     def get_open_prs(self, owner: str, repo: str) -> list[int]:
         if self._open_prs_override is not None:
@@ -329,15 +340,26 @@ class _GHClientWithSyntheticReviews:
     ) -> None:
         self._real.request_review(owner, repo, pr_number, reviewer_bot)
 
+    def list_repos(self, owner: str) -> list[str]:
+        if self._repos_override is not None and (
+            self._owner_scope is None or owner == self._owner_scope
+        ):
+            return self._repos_override
+        return self._real.list_repos(owner)
+
 
 @pytest.fixture
-def e2e_gh_client(e2e_test_pr: int) -> GHClientProtocol:
+def e2e_gh_client(e2e_repo: str, e2e_test_pr: int) -> GHClientProtocol:
     """
     実 GHClient にシンセティックレビューを注入した E2E 用クライアント。
     open_prs_override でテスト対象 PR のみを返し、他の PR に誤適用されることを防ぐ。
+    repos_override で対象リポジトリのみを返し、他のリポジトリに誤適用されることを防ぐ。
     """
+    owner, repo_name = e2e_repo.split("/", 1)
     return _GHClientWithSyntheticReviews(
         real=GHClient(),
         reviews=[_SYNTHETIC_REVIEW],
         open_prs_override=[e2e_test_pr],
+        repos_override=[repo_name],
+        owner_scope=owner,
     )

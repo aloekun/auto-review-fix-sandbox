@@ -40,7 +40,8 @@ def _make_passthrough_git(workspace_dir: Path):
 def base_config(integration_repo):
     """integration_repo を workspace として使う config。"""
     return {
-        "repo": {"owner": "test-owner", "name": "test-repo"},
+        "owner": "test-owner",
+        "repos": {"include": ["test-repo"]},
         "daemon": {
             "max_fix_attempts": 3,
             "workspace_dir": str(integration_repo),
@@ -114,7 +115,7 @@ def test_normal_flow_commits_and_records_state(
         check=True,
     ).stdout.strip()
     assert new_sha != head_sha, "FakeClaudeRunner should have created a new commit"
-    assert sm.get_fix_attempts(1) == 1
+    assert sm.get_fix_attempts("test-owner", "test-repo", 1) == 1
     assert len(fake_gh.posted_comments) >= 1
 
 
@@ -159,7 +160,7 @@ def test_no_commit_does_not_update_state(
     )
 
     # No-op runs now count the attempt to prevent infinite retry loops.
-    assert sm.get_fix_attempts(1) == 1
+    assert sm.get_fix_attempts("test-owner", "test-repo", 1) == 1
     # no-commit 専用のコメントが投稿されているはず
     assert any(
         "without creating a commit" in c[1] or "no commit" in c[1].lower()
@@ -184,7 +185,7 @@ def test_max_attempts_skips_pr(
 
     sm = StateManager(state_file=tmp_path / "state.json")
     for i in range(3):
-        sm.record_fix(1, [f"r{i}"])
+        sm.record_fix("test-owner", "test-repo", 1, [f"r{i}"])
 
     claude = FakeClaudeRunner()
     from unittest.mock import MagicMock
@@ -226,10 +227,10 @@ def test_retry_includes_previous_fix_diff(
     )
 
     sm = StateManager(state_file=tmp_path / "state.json")
-    sm.record_fix(1, ["r0"])  # attempt 1 完了済み
+    sm.record_fix("test-owner", "test-repo", 1, ["r0"])  # attempt 1 完了済み
 
     # tmp_path を base_dir にして runs/ 成果物をソースツリー外に置く
-    patch_dir = tmp_path / "runs" / "pr-1" / "attempt-1"
+    patch_dir = tmp_path / "runs" / "test-owner" / "test-repo" / "pr-1" / "attempt-1"
     patch_dir.mkdir(parents=True, exist_ok=True)
     (patch_dir / "diff_after.patch").write_text("previous diff content", encoding="utf-8")
 

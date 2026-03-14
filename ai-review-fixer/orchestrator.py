@@ -69,50 +69,84 @@ class Orchestrator:
     # ------------------------------------------------------------------
 
     def run_once(self) -> None:
-        owner = self._config["repo"]["owner"]
-        repo = self._config["repo"]["name"]
-        max_attempts = self._config["daemon"]["max_fix_attempts"]
+        owner: str = self._config["owner"]
+        repos_config = self._config.get("repos") or {}
+        if not isinstance(repos_config, dict):
+            raise TypeError(
+                f"config.yaml: 'repos' must be a mapping, "
+                f"got {type(repos_config).__name__!r}."
+            )
+        repos_include: list[str] = repos_config.get("include", [])
+        if not isinstance(repos_include, list):
+            raise TypeError(
+                f"config.yaml: 'repos.include' must be a list, "
+                f"got {type(repos_include).__name__!r}."
+            )
+        max_attempts: int = self._config["daemon"]["max_fix_attempts"]
         reviewer_bots: list[str] = self._config["reviewer_bots"]
         if not isinstance(reviewer_bots, list):
             raise TypeError(
                 f"config.yaml: 'reviewer_bots' must be a list, "
                 f"got {type(reviewer_bots).__name__!r}."
             )
-        workspace_dir = (
+        base_workspace = (
             Path(__file__).parent / self._config["daemon"]["workspace_dir"]
         ).resolve()
-        patch_proposal_mode = self._config["daemon"].get("patch_proposal_mode", False)
+        patch_proposal_mode: bool = self._config["daemon"].get(
+            "patch_proposal_mode", False
+        )
 
-        self._ensure_workspace(workspace_dir, owner, repo)
+        # TODO: repos の updated_at フィルタ（更新の古いリポジトリを除外）
+        all_repos = self._gh.list_repos(owner)
+        repos = [r for r in all_repos if r in repos_include] if repos_include else all_repos
 
-        pr_numbers = self._gh.get_open_prs(owner, repo)
-        if not pr_numbers:
-            print("[orchestrator] No open PRs.", flush=True)
+        if not repos:
+            print(
+                f"[orchestrator] No repos found for owner {owner!r}.", flush=True
+            )
             return
 
-        for pr_number in pr_numbers:
+        # TODO: parallel processing for multiple repos
+        for repo in repos:
             try:
-                if patch_proposal_mode:
-                    self._process_pr_patch_mode(
-                        pr_number=pr_number,
-                        owner=owner,
-                        repo=repo,
-                        max_attempts=max_attempts,
-                        reviewer_bots=reviewer_bots,
-                        workspace_dir=workspace_dir,
-                    )
-                else:
-                    self._process_pr(
-                        pr_number=pr_number,
-                        owner=owner,
-                        repo=repo,
-                        max_attempts=max_attempts,
-                        reviewer_bots=reviewer_bots,
-                        workspace_dir=workspace_dir,
-                    )
+                workspace_dir = (base_workspace / owner / repo).resolve()
+                self._ensure_workspace(workspace_dir, owner, repo)
+
+                pr_numbers = self._gh.get_open_prs(owner, repo)
+                if not pr_numbers:
+                    print(f"[orchestrator] {owner}/{repo}: No open PRs.", flush=True)
+                    continue
+
+                for pr_number in pr_numbers:
+                    try:
+                        if patch_proposal_mode:
+                            self._process_pr_patch_mode(
+                                pr_number=pr_number,
+                                owner=owner,
+                                repo=repo,
+                                max_attempts=max_attempts,
+                                reviewer_bots=reviewer_bots,
+                                workspace_dir=workspace_dir,
+                            )
+                        else:
+                            self._process_pr(
+                                pr_number=pr_number,
+                                owner=owner,
+                                repo=repo,
+                                max_attempts=max_attempts,
+                                reviewer_bots=reviewer_bots,
+                                workspace_dir=workspace_dir,
+                            )
+                    except Exception as exc:
+                        print(
+                            f"[orchestrator] {owner}/{repo} PR #{pr_number}: "
+                            f"unhandled error, skipping: {exc}",
+                            file=sys.stderr,
+                            flush=True,
+                        )
             except Exception as exc:
                 print(
-                    f"[orchestrator] PR #{pr_number}: unhandled error, skipping: {exc}",
+                    f"[orchestrator] {owner}/{repo}: repo-level error, skipping: {exc}",
                     file=sys.stderr,
                     flush=True,
                 )
@@ -126,6 +160,7 @@ class Orchestrator:
     ) -> None:
         """daemon-workspace が存在しなければ git clone する。"""
         if not workspace_dir.exists():
+            workspace_dir.parent.mkdir(parents=True, exist_ok=True)
             repo_url = f"https://github.com/{owner}/{repo}.git"
             print(
                 f"[orchestrator] Cloning {repo_url} into {workspace_dir}",
@@ -182,8 +217,8 @@ class Orchestrator:
         reviewer_bots: list[str],
         workspace_dir: Path,
     ) -> None:
-        fix_attempts = self._state.get_fix_attempts(pr_number)
-        processed_ids = self._state.get_processed_review_ids(pr_number)
+        fix_attempts = self._state.get_fix_attempts(owner, repo, pr_number)
+        processed_ids = self._state.get_processed_review_ids(owner, repo, pr_number)
 
         if fix_attempts >= max_attempts:
             print(
@@ -238,7 +273,7 @@ class Orchestrator:
         func_names = self._context.extract_function_names_from_diff(diff)
         call_graph_context = self._context.get_call_graph_context(func_names, workspace_dir)
         previous_fix_diff = self._context.get_previous_fix_diff(
-            base_dir, pr_number, fix_attempts
+            base_dir, pr_number, fix_attempts, owner=owner, repo=repo
         )
 
         print(
@@ -266,7 +301,7 @@ class Orchestrator:
 
         if returncode != 0:
             # Count the failed attempt so max_fix_attempts guard can fire.
-            self._state.record_fix(pr_number, [r.id for r in new_reviews])
+            self._state.record_fix(owner, repo, pr_number, [r.id for r in new_reviews])
             print(
                 f"[orchestrator] PR #{pr_number}: "
                 "Claude exited with non-zero code; attempt recorded.",
@@ -305,8 +340,8 @@ class Orchestrator:
         workspace_dir: Path,
     ) -> None:
         """Run 1 でパッチ生成のみ、Run 2 でパッチ検証 → commit を行う2段階モード。"""
-        fix_attempts = self._state.get_fix_attempts(pr_number)
-        processed_ids = self._state.get_processed_review_ids(pr_number)
+        fix_attempts = self._state.get_fix_attempts(owner, repo, pr_number)
+        processed_ids = self._state.get_processed_review_ids(owner, repo, pr_number)
 
         if fix_attempts >= max_attempts:
             print(
@@ -361,7 +396,7 @@ class Orchestrator:
         func_names = self._context.extract_function_names_from_diff(diff)
         call_graph_context = self._context.get_call_graph_context(func_names, workspace_dir)
         previous_fix_diff = self._context.get_previous_fix_diff(
-            base_dir, pr_number, fix_attempts
+            base_dir, pr_number, fix_attempts, owner=owner, repo=repo
         )
 
         print(
@@ -392,7 +427,7 @@ class Orchestrator:
 
         returncode1 = self._claude.run(proposal_prompt, workspace_dir)
         if returncode1 != 0:
-            self._state.record_fix(pr_number, [r.id for r in new_reviews])
+            self._state.record_fix(owner, repo, pr_number, [r.id for r in new_reviews])
             print(
                 f"[orchestrator] PR #{pr_number}: "
                 f"Run 1 (patch proposal) failed with code {returncode1}; attempt recorded.",
@@ -419,7 +454,7 @@ class Orchestrator:
 
         returncode2 = self._claude.run(verify_prompt, workspace_dir)
         if returncode2 != 0:
-            self._state.record_fix(pr_number, [r.id for r in new_reviews])
+            self._state.record_fix(owner, repo, pr_number, [r.id for r in new_reviews])
             print(
                 f"[orchestrator] PR #{pr_number}: "
                 f"Run 2 (verification) failed with code {returncode2}; attempt recorded.",
@@ -476,11 +511,15 @@ class Orchestrator:
             diff_before=diff,
             workspace_dir=workspace_dir,
             original_head_sha=original_head_sha,
+            owner=owner,
+            repo=repo,
         )
 
         # record_fix を先に実行する: save_structured_log / post_pr_comment が
         # 失敗しても state は確実に更新され、無限リトライを防ぐ。
-        new_attempt = self._state.record_fix(pr_number, [r.id for r in new_reviews])
+        new_attempt = self._state.record_fix(
+            owner, repo, pr_number, [r.id for r in new_reviews]
+        )
 
         try:
             self._logger.save_structured_log(
@@ -494,6 +533,8 @@ class Orchestrator:
                     "committed": run_data["committed"],
                     "timestamp": datetime.now(timezone.utc).isoformat(),
                 },
+                owner=owner,
+                repo=repo,
             )
         except Exception as exc:
             print(

@@ -17,12 +17,16 @@ class FakeGHClient:
     reviews: dict[int, list[Review]] = field(default_factory=dict)
     review_comments: dict[int, list[dict]] = field(default_factory=dict)
     pr_diffs: dict[int, str] = field(default_factory=dict)
+    repos: list[str] = field(default_factory=list)
 
     # 呼び出し記録（アサート用）
     posted_comments: list[tuple[int, str]] = field(default_factory=list)
     review_requests: list[tuple[int, str]] = field(default_factory=list)
+    repos_queried: list[tuple[str, str]] = field(default_factory=list)
+    list_repos_owners_called: list[str] = field(default_factory=list)
 
-    def get_open_prs(self, owner: str, repo: str) -> list[int]:  # noqa: ARG002
+    def get_open_prs(self, owner: str, repo: str) -> list[int]:
+        self.repos_queried.append((owner, repo))
         return list(self.open_prs)
 
     def get_pr_info(self, owner: str, repo: str, pr_number: int) -> PRInfo:  # noqa: ARG002
@@ -48,3 +52,7 @@ class FakeGHClient:
         self, owner: str, repo: str, pr_number: int, reviewer_bot: str  # noqa: ARG002
     ) -> None:
         self.review_requests.append((pr_number, reviewer_bot))
+
+    def list_repos(self, owner: str) -> list[str]:
+        self.list_repos_owners_called.append(owner)
+        return list(self.repos)

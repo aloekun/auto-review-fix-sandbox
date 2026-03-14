@@ -87,8 +87,11 @@ def test_full_flow(
     3. PR ブランチに fix コミットが push されたことを検証する。
     4. PR コメントに "AI Auto Fix Report" が含まれることを検証する。
     """
-    owner = e2e_config["repo"]["owner"]
-    repo = e2e_config["repo"]["name"]
+    owner = e2e_config["owner"]
+    repos_include = e2e_config["repos"]["include"]
+    if not repos_include:
+        pytest.fail("e2e_config['repos']['include'] is empty — cannot determine test repo name")
+    repo = repos_include[0]
 
     # PR 作成直後の HEAD SHA を記録する
     initial_sha = _get_pr_head_sha(owner, repo, e2e_test_pr)

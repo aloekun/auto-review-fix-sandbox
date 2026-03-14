@@ -174,3 +174,27 @@ class GHClient:
             self.post_pr_comment(owner, repo, pr_number, "@codex review")
         else:
             pass
+
+    def list_repos(self, owner: str) -> list[str]:
+        """owner 配下のリポジトリ名一覧を返す（fork・archived 除外）。"""
+        result = subprocess.run(
+            [
+                "gh",
+                "repo",
+                "list",
+                owner,
+                "--source",
+                "--no-archived",
+                "--limit",
+                "9999",
+                "--json",
+                "name",
+            ],
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            check=True,
+            timeout=60,
+        )
+        items = json.loads(result.stdout)
+        return [item["name"] for item in items]

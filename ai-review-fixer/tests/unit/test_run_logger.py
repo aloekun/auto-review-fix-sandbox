@@ -72,6 +72,38 @@ def test_save_artifacts_creates_run_dir(logger, git_repo, tmp_path, sample_revie
     assert data["committed"] is False  # no new commit was made
 
 
+def test_save_artifacts_uses_owner_repo_namespace(logger, git_repo, tmp_path, sample_review):
+    """owner/repo を指定すると runs/{owner}/{repo}/pr-{N}/attempt-{M}/ を使う。"""
+    result = subprocess.run(
+        ["git", "rev-parse", "HEAD"],
+        cwd=git_repo,
+        capture_output=True,
+        text=True,
+        check=True,
+    )
+    head_sha = result.stdout.strip()
+
+    base_dir = tmp_path / "base"
+    base_dir.mkdir()
+
+    logger.save_run_artifacts(
+        base_dir=base_dir,
+        pr_number=1,
+        attempt=1,
+        prompt="test",
+        reviews=[sample_review],
+        inline_comments=[],
+        diff_before="",
+        workspace_dir=git_repo,
+        original_head_sha=head_sha,
+        owner="my-org",
+        repo="my-repo",
+    )
+
+    run_dir = base_dir / "runs" / "my-org" / "my-repo" / "pr-1" / "attempt-1"
+    assert run_dir.exists()
+
+
 def test_save_artifacts_detects_new_commit(logger, git_repo, tmp_path, sample_review):
     result = subprocess.run(
         ["git", "rev-parse", "HEAD"],
@@ -124,6 +156,17 @@ def test_save_structured_log_creates_json(logger, tmp_path):
     assert len(log_files) == 1
     loaded = json.loads(log_files[0].read_text())
     assert loaded["pr"] == 1
+
+
+def test_save_structured_log_uses_owner_repo_namespace(logger, tmp_path):
+    """owner/repo を指定すると logs/YYYY-MM-DD/{owner}/{repo}/... パスを使う。"""
+    log_data = {"pr": 1, "attempt": 1, "committed": True, "files_changed": []}
+    logger.save_structured_log(tmp_path, log_data, owner="my-org", repo="my-repo")
+
+    log_files = list((tmp_path / "logs").rglob("*.json"))
+    assert len(log_files) == 1
+    assert "my-org" in str(log_files[0])
+    assert "my-repo" in str(log_files[0])
 
 
 # --- _format_reviews_text ---
