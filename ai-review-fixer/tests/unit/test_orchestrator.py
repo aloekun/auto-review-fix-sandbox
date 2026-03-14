@@ -19,7 +19,7 @@ def base_config():
             "poll_interval_seconds": 60,
             "patch_proposal_mode": False,
         },
-        "reviewer_bot": "coderabbitai[bot]",
+        "reviewer_bots": ["coderabbitai[bot]"],
     }
 
 
@@ -224,11 +224,101 @@ def test_request_review_called_when_committed(
         owner="test-owner",
         repo="test-repo",
         max_attempts=3,
-        reviewer_bot="coderabbitai[bot]",
+        reviewer_bots=["coderabbitai[bot]"],
         workspace_dir=tmp_path,
     )
 
     assert gh.review_requests == [(1, "coderabbitai[bot]")]
+
+
+def test_request_review_called_for_each_bot_when_committed(
+    base_config, tmp_path, sample_review
+):
+    """複数 reviewer_bots 設定時、commit 後に全ボットへ request_review が呼ばれる。"""
+    pr_info = PRInfo(
+        number=1,
+        head_ref="main",
+        head_sha="aabbcc",
+        title="Test PR",
+        head_repo_url="https://github.com/test-owner/test-repo",
+    )
+    # chatgpt-codex-connector のレビューも用意
+    codex_review = Review(
+        id="r2",
+        user_login="chatgpt-codex-connector",
+        state="CHANGES_REQUESTED",
+        body="Fix that.",
+        submitted_at="2026-03-11T00:00:00Z",
+    )
+    multi_config = {
+        **base_config,
+        "reviewer_bots": ["coderabbitai[bot]", "chatgpt-codex-connector"],
+    }
+    gh = FakeGHClient(
+        open_prs=[1],
+        pr_infos={1: pr_info},
+        reviews={1: [sample_review, codex_review]},
+        review_comments={1: []},
+        pr_diffs={1: ""},
+    )
+    sm = StateManager(state_file=tmp_path / "state.json")
+    claude = FakeClaudeRunner(returncode=0, file_changes={})
+    mock_git = _make_mock_git()
+
+    orch = Orchestrator(
+        config=multi_config,
+        gh_client=gh,
+        git_client=mock_git,
+        claude_runner=claude,
+        state_manager=sm,
+        base_dir=tmp_path,
+    )
+    orch._process_pr(
+        pr_number=1,
+        owner="test-owner",
+        repo="test-repo",
+        max_attempts=3,
+        reviewer_bots=["coderabbitai[bot]", "chatgpt-codex-connector"],
+        workspace_dir=tmp_path,
+    )
+
+    assert set(gh.review_requests) == {
+        (1, "coderabbitai[bot]"),
+        (1, "chatgpt-codex-connector"),
+    }
+
+
+def test_reviews_from_other_bots_are_ignored(
+    base_config, tmp_path, sample_pr_info
+):
+    """reviewer_bots に含まれないボットのレビューは処理されない。"""
+    other_review = Review(
+        id="r-other",
+        user_login="some-other-bot",
+        state="CHANGES_REQUESTED",
+        body="Unrelated.",
+        submitted_at="2026-03-11T00:00:00Z",
+    )
+    gh = FakeGHClient(
+        open_prs=[1],
+        pr_infos={1: sample_pr_info},
+        reviews={1: [other_review]},
+        review_comments={1: []},
+        pr_diffs={1: ""},
+    )
+    claude = FakeClaudeRunner()
+    mock_git = _make_mock_git()
+    sm = StateManager(state_file=tmp_path / "state.json")
+    orch = Orchestrator(
+        config=base_config,
+        gh_client=gh,
+        git_client=mock_git,
+        claude_runner=claude,
+        state_manager=sm,
+    )
+    orch.run_once()
+
+    assert claude.prompts_received == []
 
 
 def test_request_review_not_called_when_no_commit(
@@ -277,8 +367,33 @@ def test_request_review_not_called_when_no_commit(
         owner="test-owner",
         repo="test-repo",
         max_attempts=3,
-        reviewer_bot="coderabbitai[bot]",
+        reviewer_bots=["coderabbitai[bot]"],
         workspace_dir=tmp_path,
     )
 
     assert gh.review_requests == []
+
+
+# --- reviewer_bots type validation ---
+
+
+def test_run_once_raises_when_reviewer_bots_missing(base_config, tmp_path):
+    """reviewer_bots キーがない場合は KeyError を送出する。"""
+    bad_config = dict(base_config)
+    del bad_config["reviewer_bots"]
+
+    gh = FakeGHClient(open_prs=[])
+    orch = make_orchestrator(bad_config, tmp_path, gh, FakeClaudeRunner())
+    with pytest.raises(KeyError):
+        orch.run_once()
+
+
+def test_run_once_raises_when_reviewer_bots_is_string(base_config, tmp_path):
+    """reviewer_bots がスカラー文字列の場合は TypeError を送出する。"""
+    bad_config = dict(base_config)
+    bad_config["reviewer_bots"] = "coderabbitai[bot]"
+
+    gh = FakeGHClient(open_prs=[])
+    orch = make_orchestrator(bad_config, tmp_path, gh, FakeClaudeRunner())
+    with pytest.raises(TypeError, match="must be a list"):
+        orch.run_once()

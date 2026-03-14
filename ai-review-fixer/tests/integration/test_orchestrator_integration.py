@@ -47,7 +47,7 @@ def base_config(integration_repo):
             "poll_interval_seconds": 60,
             "patch_proposal_mode": False,
         },
-        "reviewer_bot": "coderabbitai[bot]",
+        "reviewer_bots": ["coderabbitai[bot]"],
     }
 
 
@@ -101,7 +101,7 @@ def test_normal_flow_commits_and_records_state(
         owner="test-owner",
         repo="test-repo",
         max_attempts=3,
-        reviewer_bot="coderabbitai[bot]",
+        reviewer_bots=["coderabbitai[bot]"],
         workspace_dir=integration_repo,
     )
 
@@ -154,7 +154,7 @@ def test_no_commit_does_not_update_state(
         owner="test-owner",
         repo="test-repo",
         max_attempts=3,
-        reviewer_bot="coderabbitai[bot]",
+        reviewer_bots=["coderabbitai[bot]"],
         workspace_dir=integration_repo,
     )
 
@@ -203,7 +203,7 @@ def test_max_attempts_skips_pr(
         owner="test-owner",
         repo="test-repo",
         max_attempts=3,
-        reviewer_bot="coderabbitai[bot]",
+        reviewer_bots=["coderabbitai[bot]"],
         workspace_dir=integration_repo,
     )
 
@@ -251,7 +251,7 @@ def test_retry_includes_previous_fix_diff(
         owner="test-owner",
         repo="test-repo",
         max_attempts=3,
-        reviewer_bot="coderabbitai[bot]",
+        reviewer_bots=["coderabbitai[bot]"],
         workspace_dir=integration_repo,
     )
 

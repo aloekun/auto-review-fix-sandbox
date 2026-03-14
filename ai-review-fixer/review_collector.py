@@ -170,6 +170,7 @@ class GHClient:
         """修正後に reviewer へ再レビューを依頼する。"""
         if reviewer_bot == "coderabbitai[bot]":
             self.post_pr_comment(owner, repo, pr_number, "@coderabbitai review")
+        elif reviewer_bot == "chatgpt-codex-connector":
+            self.post_pr_comment(owner, repo, pr_number, "@codex review")
         else:
-            # 将来: GitHub reviewers API / 他ボットのコメントトリガー
             pass
