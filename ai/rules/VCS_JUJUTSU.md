@@ -73,6 +73,37 @@ pnpm jj-push --bookmark <name>
 pnpm jj-start-change
 ```
 
+### Stacked PR ワークフロー（複数 PR を順番に作成する場合）
+
+PR を複数に分割して順番にレビュー・マージする場合（例: 機能 A → 機能 B → 機能 C）に使う。
+各 PR は前の PR ブランチをベースにする。
+
+**前提**: 次の PR の作業を始める前に、現在の PR ブランチを push 済みであること。
+
+```bash
+# PR 1 の作業を完了して push
+pnpm jj-describe -m "feat(scope): PR 1 の内容"
+pnpm jj-bookmark create feat/pr1-description
+pnpm jj-push --bookmark feat/pr1-description --allow-new
+# → GitHub で PR 1 を作成（base: main）
+
+# PR 2 の作業を始める（PR 1 ブランチをベースにする）
+pnpm jj-start-change feat/pr1-description
+# 内部で: dirty tree チェック → fetch → feat/pr1-description@origin の存在確認 → jj new
+
+# PR 2 の作業
+pnpm jj-describe -m "feat(scope): PR 2 の内容"
+pnpm jj-bookmark create feat/pr2-description
+pnpm jj-push --bookmark feat/pr2-description --allow-new
+# → GitHub で PR 2 を作成（base: main ※ PR 1 マージ後に自動的に main に届く）
+
+# PR 3 以降も同様
+pnpm jj-start-change feat/pr2-description
+```
+
+**注意**: `pnpm jj-start-change [base]` で指定するブランチはリモートに存在する必要がある。
+ローカルのみのブランチは指定できない（先に `pnpm jj-push --allow-new` が必要）。
+
 ### 誤って main 上で作業した場合の復旧
 
 ```bash
@@ -97,7 +128,7 @@ pnpm jj-bookmark create feature/N-description
 | Layer 1 | `validate-command.exe` | `git` コマンド直接実行をブロック |
 | Layer 2 | `validate-command.exe` | `jj new main` をブロック |
 | Layer 3 | `validate-command.exe` | `jj edit main` をブロック |
-| Layer 4 | `.claude/scripts/jj-push-safe.sh` | push 前に `main@origin` が祖先かチェック |
+| Layer 4 | `.claude/scripts/jj-push-safe.sh` | push 前にリモートブランチ（`main@origin` または push済みfeatureブランチ）が祖先かチェック |
 | Layer 5 | `.claude/scripts/jj-start-change.sh` | 作業開始前に working copy が clean かチェック |
 
 ### dirty tree guard（第5層）でエラーになった場合

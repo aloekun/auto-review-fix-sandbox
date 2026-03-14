@@ -80,6 +80,7 @@ pnpm jj-status                              # 状態確認
 pnpm jj-diff                                # 差分
 pnpm jj-log                                 # 履歴
 pnpm jj-start-change                        # 作業開始（fetch + jj new main@origin を実行）
+pnpm jj-start-change feat/pr1-branch        # stacked PR: push済みブランチをベースにして作業開始
 pnpm jj-describe -m "feat(scope): message"  # 変更を記述
 pnpm jj-bookmark create feature/N-desc      # ブックマーク作成 (describe 後に実行)
 pnpm jj-push --bookmark name                # push (初回は --allow-new 追加)
@@ -88,6 +89,7 @@ pnpm gh-pr create --base main ...           # PR 作成 (gh CLI 使用)
 ```
 
 **注意**: 作業開始時は必ず `pnpm jj-start-change` を使う。`jj new main` / `pnpm jj-new main` と `jj edit main` / `pnpm jj-edit main` は hook によりブロックされる（`jj new main@origin` は許可）。
+Stacked PR（PR を複数に分割して順番にマージする場合）では `pnpm jj-start-change feat/pr1-branch` で push済みブランチをベースにできる。詳細は [ai/rules/VCS_JUJUTSU.md](ai/rules/VCS_JUJUTSU.md) を参照。
 
 詳細は [ai/rules/VCS_JUJUTSU.md](ai/rules/VCS_JUJUTSU.md) を参照。
 
