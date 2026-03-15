@@ -101,3 +101,23 @@ Layer 5: start-change dirty tree guard  (jj-start-change.sh)
 | `GIT_WORKFLOW.md` | コードブロック閉じフェンス追加 |
 | `VCS_JUJUTSU.md` | `jj restore` → `pnpm jj-restore` に統一 |
 | `tasks/todo.md` | Phase 8.2 の説明矛盾を修正 |
+
+---
+
+## Phase 9: multi-repo サポート ✅
+
+**PR #37**
+
+`config.yaml` の単一リポジトリ設定を廃止し、GitHub owner 配下の全リポジトリを対象に自動修正を実行できるよう拡張。
+
+- `GHClient.list_repos(owner)` 追加（`gh repo list --source --no-archived --limit 9999`）
+- `StateManager` キー形式を `pr_{N}` → `{owner}/{repo}/pr_{N}` に変更（旧キー検出時 stderr 警告）
+- `run_logger` / `context_builder` のパスに `{owner}/{repo}` を追加（後方互換デフォルト付き）
+- `orchestrator.run_once()` を multi-repo ループに全面改修（`repos.include` 空 = 全リポジトリ対象）
+- `config.yaml` を `owner` + `repos.include` 形式に変更
+- リポジトリ単位の try/except でエラー分離（1 リポジトリ失敗で全体停止しない）
+- `_ensure_workspace()` でクローン前に `parent.mkdir(parents=True)` を追加
+- `repos` / `repos.include` の型バリデーション追加（`reviewer_bots` と同方式）
+- `FakeGHClient` に `repos_queried` / `list_repos_owners_called` 追跡フィールドを追加
+- E2E conftest に `owner_scope` パラメータを追加して owner 伝播を検証可能に
+- テスト 123 passed、ruff + mypy clean
