@@ -1,71 +1,79 @@
 # Branch / Commit / PR Guidelines for Claude Code
 
+> **変更履歴**: [ADR 002](../../docs/adr/002-remote-based-branch-strategy.md) により
+> `develop` ベースの旧規約からリモートブランチ（`@origin`）ベースに移行。
+
 ## 0. ブランチ構成
 
 ```text
-main        リリース用（保護ブランチ）
-  └── develop   日常開発のベース
-        └── feature/1-xxx   各タスクの作業ブランチ
+main@origin   デフォルトブランチ（保護ブランチ）
+  └── feat/xxx, fix/xxx ...   各タスクの作業ブランチ
 ```
 
 | ブランチ | 役割 | マージ先 |
 |---------|------|---------|
-| `main` | リリース済みの安定版。GitHub デフォルトブランチ | - |
-| `develop` | 開発の統合ブランチ。feature ブランチの PR はここに出す | `main`（リリース時） |
-| `feature/*` | 個別タスクの作業ブランチ | `develop` |
-| `hotfix/*` | 本番緊急対応 | `main` + `develop` |
+| `main` | デフォルトブランチ。全 PR はここに向ける | - |
+| `feat/*`, `fix/*` 等 | 個別タスクの作業ブランチ | `main` |
+
+- `develop` ブランチは**廃止**（理由は [ADR 002](../../docs/adr/002-remote-based-branch-strategy.md) を参照）
+- `hotfix/*` は廃止。`main` 直接ベースのため `fix/*` で統一
 
 ## 1. ブランチ命名規則
 
 ### フォーマット
-`<type>/<issue番号>-<kebab-case-の説明>`
-
-Issue 番号は **必須**。GitHub Issue を先に作成してから作業を開始する。
+`<type>/<kebab-case-の説明>`
 
 ### typeの一覧
 
 | type | 用途 |
 |------|------|
-| `feature` | 新機能追加 |
+| `feat` | 新機能・ワークフロー変更 |
 | `fix` | バグ修正 |
 | `refactor` | リファクタリング（振る舞い変更なし） |
 | `docs` | ドキュメントのみの変更 |
-| `test` | テストの追加・修正 |
+| `test` | テスト・レビュー動作テスト |
 | `chore` | ビルド・CI・依存関係などの変更 |
-| `hotfix` | 本番緊急対応 |
 
 ### 命名例
-feature/1-setup-local-server
-fix/12-session-error-after-password-reset
-refactor/23-extract-auth-service
-docs/34-update-readme-setup
-chore/45-update-eslint-config
-hotfix/99-critical-payment-null-error
+```
+feat/setup-local-server
+fix/session-error-after-password-reset
+refactor/extract-auth-service
+docs/update-readme-setup
+chore/update-eslint-config
+test/review-trigger-validation
+```
 
 ### ブランチ作成ルール
-- **必ず `develop` の最新から切る**（hotfix のみ `main` から切る）
-- 1ブランチ = 1つの目的・1つの Issue
+- **必ずリモートの最新（`main@origin`）から切る**
+- Stacked PR の場合は push 済みブランチ（`[branch]@origin`）から切る
+- 1ブランチ = 1つの目的
 - ブランチ名は小文字・ハイフン区切り（スペース・アンダースコア禁止）
 
-### Claude Codeへの指示
+### jj での作業開始
 ```bash
-# ブランチ作成前に必ず最新を取得する
-git checkout develop && git pull origin develop
+# 通常の作業開始（fetch + jj new main@origin を一括実行）
+pnpm jj-start-change
 
-# ブランチを作成して移動
-git checkout -b <type>/<issue番号>-<説明>
+# Stacked PR: push済みブランチをベースにする場合
+pnpm jj-start-change feat/pr1-branch
 ```
+
+**注意**: `jj new main`（ローカル main）はガードによりブロックされる。
+詳細は [VCS_JUJUTSU.md](VCS_JUJUTSU.md) を参照。
 
 ## 2. コミットメッセージ規約
 
-[Conventional Commits](https://www.conventionalcommits.org/) に準拠します。
+[Conventional Commits](https://www.conventionalcommits.org/) に準拠する。
 
 ### フォーマット
+```
 <type>(<scope>): <subject>
 
 [任意: body - なぜこの変更が必要か]
 
 [任意: footer - Breaking Change / Issue参照]
+```
 
 ### typeの一覧
 
@@ -98,19 +106,19 @@ git checkout -b <type>/<issue番号>-<説明>
 
 ```bash
 # 悪い例（何をしたか羅列するだけ）
-git commit -m "ボタンの色を変更した"
-git commit -m "fix bug"
-git commit -m "修正"
+"ボタンの色を変更した"
+"fix bug"
+"修正"
 
 # 良い例（why + what が明確）
-git commit -m "feat(auth): パスワードリセット後の自動ログイン機能を追加
+"feat(auth): パスワードリセット後の自動ログイン機能を追加
 
 セキュリティポリシー変更により、リセット後は再認証を必須とする。
 セッション継続を廃止し、ログイン画面へリダイレクトする。
 
 Closes #456"
 
-git commit -m "fix(ui): CTAボタンのコントラスト比をWCAG AA基準に修正
+"fix(ui): CTAボタンのコントラスト比をWCAG AA基準に修正
 
 blue-400では基準値4.5:1を下回っていたためblue-600に変更。
 Closes #789"
@@ -118,29 +126,29 @@ Closes #789"
 
 ### 1コミット = 1つの論理的変更
 - 複数の変更を1コミットに詰め込まない
-- WIP（作業中）コミットはPR作成前に `git rebase -i` でsquashする
-- `git add -p` でハンクごとに追加し、意図しない変更を混入させない
+- jj では `jj squash` で変更を統合する
 
 ### Breaking Changeの書き方
-git commit -m "feat(api)!: レスポンス形式をJSONに統一
+```
+feat(api)!: レスポンス形式をJSONに統一
+
 BREAKING CHANGE: XMLレスポンスは廃止。
-既存クライアントは移行ガイド(docs/migration.md)を参照。"
+既存クライアントは移行ガイド(docs/migration.md)を参照。
+```
 
 ## 3. Pull Request規約
 
 ### PR のマージ先
 
-| ブランチ種別 | マージ先 |
-|-------------|---------|
-| `feature/*`, `fix/*`, `refactor/*`, `docs/*`, `test/*`, `chore/*` | `develop` |
-| `hotfix/*` | `main`（+ `develop` にもマージ） |
-| `develop`（リリース時） | `main` |
+全ブランチ → `main`
 
 ### PR タイトル
-コミットメッセージと同じConventional Commits形式 + Issue番号
+Conventional Commits 形式
 
-feat(server): ローカルサーバーの基盤を構築 #1
-fix(parser): ISBN正規化のハイフン処理を修正 #12
+```
+feat(server): ローカルサーバーの基盤を構築
+fix(parser): ISBN正規化のハイフン処理を修正
+```
 
 ### PR 本文テンプレート
 
@@ -149,8 +157,7 @@ fix(parser): ISBN正規化のハイフン処理を修正 #12
 <!-- このPRで何をしたかを2〜3文で説明 -->
 
 ## 背景・目的
-<!-- なぜこの変更が必要か。関連Issueへのリンク -->
-Closes #<issue番号>
+<!-- なぜこの変更が必要か -->
 
 ## 変更内容
 <!-- 主な変更点をリストアップ -->
@@ -168,22 +175,13 @@ Closes #<issue番号>
 2.
 3.
 
-## スクリーンショット / 動画
-<!-- UI変更がある場合は必須。Before / After形式で -->
-
-| Before | After |
-|--------|-------|
-| <!-- 画像 --> | <!-- 画像 --> |
-
 ## チェックリスト
 - [ ] セルフレビュー済み
 - [ ] テストを追加・更新した
 - [ ] 既存テストがすべて通る
 - [ ] ドキュメントを更新した（必要な場合）
 - [ ] Breaking Changeがある場合は明記した
-
-## レビュアーへのメモ
-<!-- 特に見てほしい箇所、迷った判断、懸念点などを事前に共有 -->
+```
 
 ### PRの品質基準
 
