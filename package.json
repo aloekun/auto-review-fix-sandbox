@@ -26,7 +26,7 @@
     "gh-repo": "gh repo",
     "gh-pr": "gh pr",
     "gh-run": "gh run",
-    "gh-api": "gh api",
+    "gh-api": "bash .claude/scripts/gh-api-safe.sh",
     "gh-secret": "gh secret",
     "typecheck": "tsc --noEmit",
     "daemon": "python ai-review-fixer/orchestrator.py",
