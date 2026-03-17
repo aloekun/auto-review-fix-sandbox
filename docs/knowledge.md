@@ -347,3 +347,86 @@ bash run_daemon.sh                 # Ctrl+C で停止
 ```bash
 python ai-review-fixer/orchestrator.py
 ```
+
+---
+
+## 8. GitHub PR レビューコメントの API 操作
+
+### エンドポイント一覧
+
+| 操作 | エンドポイント | メソッド |
+|------|---------------|---------|
+| レビューコメント一覧取得 | `repos/{owner}/{repo}/pulls/{pr}/comments` | GET |
+| レビュー一覧取得 | `repos/{owner}/{repo}/pulls/{pr}/reviews` | GET |
+| 特定レビューのコメント取得 | `repos/{owner}/{repo}/pulls/{pr}/reviews/{review_id}/comments` | GET |
+| コメントに返信 | `repos/{owner}/{repo}/pulls/{pr}/comments/{comment_id}/replies` | POST |
+| コメント削除 | `repos/{owner}/{repo}/pulls/comments/{comment_id}` | DELETE |
+
+### レビューコメントへの返信
+
+```bash
+# 返信を投稿（comment_id はルートコメントの ID）
+pnpm gh-api repos/{owner}/{repo}/pulls/{pr}/comments/{comment_id}/replies \
+  -f body="Fixed: <説明>. Addressed in <commit_hash>." -X POST
+```
+
+**注意点:**
+- `pulls/{pr}/comments/{comment_id}/replies` が正しいパス。`pulls/comments/{comment_id}/replies` では **404 Not Found** になる
+- `comment_id` はルートコメント（`in_reply_to_id == null`）の ID を指定する
+- 返信は自動的にスレッドに紐づく
+
+### コメントの分類（ルート vs 返信）
+
+```bash
+# ルートコメントのみ取得（レビュアーの元の指摘）
+pnpm gh-api repos/{owner}/{repo}/pulls/{pr}/comments \
+  --jq "[.[] | select(.in_reply_to_id == null)] | .[] | [.id, .path, .body[:80]] | @tsv"
+
+# 特定レビューサイクルのコメント取得
+pnpm gh-api repos/{owner}/{repo}/pulls/{pr}/reviews/{review_id}/comments \
+  --jq ".[] | [.id, .path, (.line // .original_line), .body[:100]] | @tsv"
+```
+
+### レビューサイクルの追跡
+
+CodeRabbit のように増分レビューを行うボットでは、push ごとに新しい review が作成される。
+最新のレビューコメントを特定するには:
+
+```bash
+# 全レビューの ID を取得（末尾が最新）
+pnpm gh-api repos/{owner}/{repo}/pulls/{pr}/reviews --jq ".[].id"
+
+# 最新レビューのコメントを確認
+pnpm gh-api repos/{owner}/{repo}/pulls/{pr}/reviews/{latest_review_id}/comments \
+  --jq ".[] | [.id, .path, .body[:100]] | @tsv"
+```
+
+### jq フィルタのエスケープ問題（Windows / pnpm 経由）
+
+`pnpm gh-api` が `"gh-api": "gh api"` と直接マッピングされていた場合、pnpm の引数パースにより jq 式内の `\(...)` 等が正しく渡らない問題があった。
+
+**対策（修正済み）:**
+- `gh-api` スクリプトを bash ラッパー（`.claude/scripts/gh-api-safe.sh`）経由に変更し、`"$@"` で引数を保護して渡すようにした
+- これにより `pnpm gh-api ... --jq '.[] | "\(.id)"'` のような複雑な jq フィルタも正しく動作する
+
+**補足:**
+- 複雑なフィルタは `@tsv` 出力 + シンプルなフィールド選択に留めると可読性が高い
+- body のパースが必要な場合は `python -c` にパイプする方法も有効
+
+### Resolve されないスレッド
+
+GitHub API には PR review comment のスレッドを「Resolved」にする REST API が存在しない。
+Resolve は GitHub Web UI での手動操作、または GraphQL API の `resolveReviewThread` mutation で行う必要がある。
+
+```bash
+# threadId は GitHub の global node ID（例: "PRRT_kwDO..."）
+# まず reviewThreads を query して取得する必要がある
+pnpm gh-api graphql -f query='
+mutation {
+  resolveReviewThread(input: { threadId: "<THREAD_NODE_ID>" }) {
+    thread { isResolved }
+  }
+}'
+```
+
+実運用では、返信で対応済みを示し、PR マージ時に自動的に解消されるのを待つのが最も簡潔。
