@@ -62,7 +62,6 @@ def make_orchestrator(
     claude_runner,
     state_file=None,
 ):
-
     sm = StateManager(state_file=state_file or tmp_path / "state.json")
     # GitClient が git コマンドを実行するが、workspace_dir のクローン/フェッチは
     # ensure_workspace が担うため、ここでは mock_git で迂回する
@@ -86,6 +85,7 @@ def _make_mock_git():
 
 # --- no open PRs ---
 
+
 def test_run_once_does_nothing_when_no_open_prs(base_config, tmp_path):
     gh = FakeGHClient(open_prs=[], repos=["test-repo"])
     orch = make_orchestrator(base_config, tmp_path, gh, FakeClaudeRunner())
@@ -93,6 +93,7 @@ def test_run_once_does_nothing_when_no_open_prs(base_config, tmp_path):
 
 
 # --- no repos found ---
+
 
 def test_run_once_does_nothing_when_no_repos_found(base_config, tmp_path):
     """list_repos が空リストを返すとき何もしない。"""
@@ -108,6 +109,7 @@ def test_run_once_does_nothing_when_no_repos_found(base_config, tmp_path):
 
 
 # --- multi-repo iteration ---
+
 
 def test_run_once_iterates_multiple_repos(base_config, tmp_path):
     """repos.include を指定しないとき、list_repos で返ったリポジトリを全て処理する。"""
@@ -142,6 +144,7 @@ def test_run_once_filters_repos_with_include(base_config, tmp_path):
 
 
 # --- repo-level error isolation ---
+
 
 def test_run_once_continues_after_repo_level_error(base_config, tmp_path):
     """1つのリポジトリで ensure_workspace が失敗しても残りのリポジトリを処理し続ける。"""
@@ -182,6 +185,7 @@ def test_run_once_continues_after_repo_level_error(base_config, tmp_path):
 
 # --- max attempts guard ---
 
+
 def test_run_once_skips_pr_when_max_attempts_reached(
     base_config, tmp_path, sample_review, sample_pr_info, tmp_git_repo
 ):
@@ -215,9 +219,8 @@ def test_run_once_skips_pr_when_max_attempts_reached(
 
 # --- no new reviews ---
 
-def test_run_once_skips_when_no_new_reviews(
-    base_config, tmp_path, sample_review, sample_pr_info
-):
+
+def test_run_once_skips_when_no_new_reviews(base_config, tmp_path, sample_review, sample_pr_info):
     # すでに処理済みのレビューのみ
     sm = StateManager(state_file=tmp_path / "state.json")
     sm.record_fix("test-owner", "test-repo", 1, [sample_review.id])
@@ -245,6 +248,7 @@ def test_run_once_skips_when_no_new_reviews(
 
 
 # --- claude failure ---
+
 
 def test_run_once_records_attempt_when_claude_fails(
     base_config, tmp_path, sample_review, sample_pr_info, tmp_git_repo
@@ -277,9 +281,8 @@ def test_run_once_records_attempt_when_claude_fails(
 
 # --- request_review ---
 
-def test_request_review_called_when_committed(
-    base_config, tmp_path, sample_review
-):
+
+def test_request_review_called_when_committed(base_config, tmp_path, sample_review):
     """committed=True のとき request_review が1回呼ばれる。
 
     mock_git は stdout="" を返すため commit_hash="" となり、
@@ -323,10 +326,8 @@ def test_request_review_called_when_committed(
     assert gh.review_requests == [(1, "coderabbitai[bot]")]
 
 
-def test_request_review_called_for_each_bot_when_committed(
-    base_config, tmp_path, sample_review
-):
-    """複数 reviewer_bots 設定時、commit 後に全ボットへ request_review が呼ばれる。"""
+def test_request_review_called_for_each_actual_reviewer(base_config, tmp_path, sample_review):
+    """複数ボットが CHANGES_REQUESTED を出した場合、両方に再レビューを依頼する。"""
     pr_info = PRInfo(
         number=1,
         head_ref="main",
@@ -380,9 +381,53 @@ def test_request_review_called_for_each_bot_when_committed(
     }
 
 
-def test_reviews_from_other_bots_are_ignored(
-    base_config, tmp_path, sample_pr_info
-):
+def test_request_review_only_for_actual_reviewer_not_all_bots(base_config, tmp_path, sample_review):
+    """2ボット登録でも1ボットだけがレビューした場合、そのボットにのみ再レビューを依頼する。"""
+    pr_info = PRInfo(
+        number=1,
+        head_ref="main",
+        head_sha="aabbcc",
+        title="Test PR",
+        head_repo_url="https://github.com/test-owner/test-repo",
+    )
+    # reviewer_bots に2ボット登録するが、CHANGES_REQUESTED は coderabbitai のみ
+    multi_config = {
+        **base_config,
+        "reviewer_bots": ["coderabbitai[bot]", "chatgpt-codex-connector"],
+    }
+    gh = FakeGHClient(
+        open_prs=[1],
+        pr_infos={1: pr_info},
+        reviews={1: [sample_review]},  # coderabbitai のみ
+        review_comments={1: []},
+        pr_diffs={1: ""},
+    )
+    sm = StateManager(state_file=tmp_path / "state.json")
+    claude = FakeClaudeRunner(returncode=0, file_changes={})
+    mock_git = _make_mock_git()
+
+    orch = Orchestrator(
+        config=multi_config,
+        gh_client=gh,
+        git_client=mock_git,
+        claude_runner=claude,
+        state_manager=sm,
+        base_dir=tmp_path,
+    )
+    orch._process_pr(
+        pr_number=1,
+        owner="test-owner",
+        repo="test-repo",
+        max_attempts=3,
+        reviewer_bots=["coderabbitai[bot]", "chatgpt-codex-connector"],
+        workspace_dir=tmp_path,
+    )
+
+    # coderabbitai のみに再レビューが依頼され、codex には依頼されないこと
+    assert gh.review_requests == [(1, "coderabbitai[bot]")]
+
+
+def test_reviews_from_other_bots_are_ignored(base_config, tmp_path, sample_pr_info):
     """reviewer_bots に含まれないボットのレビューは処理されない。"""
     other_review = Review(
         id="r-other",
@@ -414,9 +459,7 @@ def test_reviews_from_other_bots_are_ignored(
     assert claude.prompts_received == []
 
 
-def test_request_review_not_called_when_no_commit(
-    base_config, tmp_path, sample_review
-):
+def test_request_review_not_called_when_no_commit(base_config, tmp_path, sample_review):
     """committed=False のとき request_review は呼ばれない。
 
     mock_git が original_head_sha と同じ値を返すため committed=False。
@@ -443,9 +486,7 @@ def test_request_review_not_called_when_no_commit(
 
     # git log -1 --format=%H が fixed_sha を返すよう設定 → committed=False
     mock_git = MagicMock()
-    mock_git.run.return_value = MagicMock(
-        returncode=0, stdout=fixed_sha + "\n", stderr=""
-    )
+    mock_git.run.return_value = MagicMock(returncode=0, stdout=fixed_sha + "\n", stderr="")
 
     orch = Orchestrator(
         config=base_config,

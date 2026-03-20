@@ -29,7 +29,7 @@ from prompt_builder import (
     build_patch_verification_prompt,
     build_prompt,
 )
-from review_collector import GHClient
+from review_collector import GHClient, Review
 from run_logger import RunLogger
 from state_manager import StateManager
 
@@ -73,8 +73,7 @@ class Orchestrator:
         repos_config = self._config.get("repos") or {}
         if not isinstance(repos_config, dict):
             raise TypeError(
-                f"config.yaml: 'repos' must be a mapping, "
-                f"got {type(repos_config).__name__!r}."
+                f"config.yaml: 'repos' must be a mapping, got {type(repos_config).__name__!r}."
             )
         repos_include: list[str] = repos_config.get("include", [])
         if not isinstance(repos_include, list):
@@ -89,21 +88,15 @@ class Orchestrator:
                 f"config.yaml: 'reviewer_bots' must be a list, "
                 f"got {type(reviewer_bots).__name__!r}."
             )
-        base_workspace = (
-            Path(__file__).parent / self._config["daemon"]["workspace_dir"]
-        ).resolve()
-        patch_proposal_mode: bool = self._config["daemon"].get(
-            "patch_proposal_mode", False
-        )
+        base_workspace = (Path(__file__).parent / self._config["daemon"]["workspace_dir"]).resolve()
+        patch_proposal_mode: bool = self._config["daemon"].get("patch_proposal_mode", False)
 
         # TODO: repos の updated_at フィルタ（更新の古いリポジトリを除外）
         all_repos = self._gh.list_repos(owner)
         repos = [r for r in all_repos if r in repos_include] if repos_include else all_repos
 
         if not repos:
-            print(
-                f"[orchestrator] No repos found for owner {owner!r}.", flush=True
-            )
+            print(f"[orchestrator] No repos found for owner {owner!r}.", flush=True)
             return
 
         # TODO: parallel processing for multiple repos
@@ -155,9 +148,7 @@ class Orchestrator:
     # Workspace management
     # ------------------------------------------------------------------
 
-    def _ensure_workspace(
-        self, workspace_dir: Path, owner: str, repo: str
-    ) -> None:
+    def _ensure_workspace(self, workspace_dir: Path, owner: str, repo: str) -> None:
         """daemon-workspace が存在しなければ git clone する。"""
         if not workspace_dir.exists():
             workspace_dir.parent.mkdir(parents=True, exist_ok=True)
@@ -222,8 +213,7 @@ class Orchestrator:
 
         if fix_attempts >= max_attempts:
             print(
-                f"[orchestrator] PR #{pr_number}: "
-                f"max attempts ({max_attempts}) reached, skip.",
+                f"[orchestrator] PR #{pr_number}: max attempts ({max_attempts}) reached, skip.",
                 flush=True,
             )
             return
@@ -316,7 +306,6 @@ class Orchestrator:
             repo=repo,
             attempt_number=attempt_number,
             max_attempts=max_attempts,
-            reviewer_bots=reviewer_bots,
             prompt=prompt,
             new_reviews=new_reviews,
             new_inline_comments=new_inline_comments,
@@ -345,8 +334,7 @@ class Orchestrator:
 
         if fix_attempts >= max_attempts:
             print(
-                f"[orchestrator] PR #{pr_number}: "
-                f"max attempts ({max_attempts}) reached, skip.",
+                f"[orchestrator] PR #{pr_number}: max attempts ({max_attempts}) reached, skip.",
                 flush=True,
             )
             return
@@ -369,8 +357,7 @@ class Orchestrator:
             return
 
         print(
-            f"[orchestrator] PR #{pr_number}: "
-            f"{len(new_reviews)} new review(s) found (patch mode).",
+            f"[orchestrator] PR #{pr_number}: {len(new_reviews)} new review(s) found (patch mode).",
             flush=True,
         )
 
@@ -437,8 +424,7 @@ class Orchestrator:
             return
 
         print(
-            f"[orchestrator] PR #{pr_number}: "
-            "Run 1 complete. Starting Run 2 (verification)...",
+            f"[orchestrator] PR #{pr_number}: Run 1 complete. Starting Run 2 (verification)...",
             flush=True,
         )
 
@@ -471,7 +457,6 @@ class Orchestrator:
             repo=repo,
             attempt_number=attempt_number,
             max_attempts=max_attempts,
-            reviewer_bots=reviewer_bots,
             prompt=proposal_prompt,
             new_reviews=new_reviews,
             new_inline_comments=new_inline_comments,
@@ -492,9 +477,8 @@ class Orchestrator:
         repo: str,
         attempt_number: int,
         max_attempts: int,
-        reviewer_bots: list[str],
         prompt: str,
-        new_reviews: list,
+        new_reviews: list[Review],
         new_inline_comments: list,
         diff: str,
         workspace_dir: Path,
@@ -517,9 +501,7 @@ class Orchestrator:
 
         # record_fix を先に実行する: save_structured_log / post_pr_comment が
         # 失敗しても state は確実に更新され、無限リトライを防ぐ。
-        new_attempt = self._state.record_fix(
-            owner, repo, pr_number, [r.id for r in new_reviews]
-        )
+        new_attempt = self._state.record_fix(owner, repo, pr_number, [r.id for r in new_reviews])
 
         try:
             self._logger.save_structured_log(
@@ -586,11 +568,10 @@ class Orchestrator:
             committed=run_data["committed"],
         )
         self._gh.post_pr_comment(owner, repo, pr_number, report_body)
-        print(
-            f"[orchestrator] PR #{pr_number}: posted fix report comment.", flush=True
-        )
+        print(f"[orchestrator] PR #{pr_number}: posted fix report comment.", flush=True)
 
-        for bot in reviewer_bots:
+        actual_reviewers = {r.user_login for r in new_reviews}
+        for bot in actual_reviewers:
             try:
                 self._gh.request_review(owner, repo, pr_number, bot)
                 print(
