@@ -24,7 +24,8 @@
         "hooks": [
           {
             "type": "command",
-            "command": "\"{{PROJECT_DIR}}\\.claude\\hooks-post-tool-linter.exe\""
+            "command": "\"{{PROJECT_DIR}}\\.claude\\hooks-post-tool-linter.exe\"",
+            "timeout": 30
           }
         ]
       }
