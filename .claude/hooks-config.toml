@@ -11,7 +11,6 @@ blocked_patterns = [
 extra_protected_files = [
   ".claude/hooks-config.toml",
   "settings.local.json",
-  "settings.local.json.template",
 ]
 
 [post_tool_linter]
