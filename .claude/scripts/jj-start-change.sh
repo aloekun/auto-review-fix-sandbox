@@ -24,7 +24,7 @@
 set -e
 
 # Working copy に未記録の変更があれば中断する（description の有無に関係なくチェック）
-changes=$(jj diff --stat 2>/dev/null || true)
+changes=$(jj diff 2>/dev/null || true)
 if [ -n "$changes" ]; then
   echo "ERROR: Working copy is dirty (uncommitted changes remain)."
   echo "前セッションのファイルが残っています。"
