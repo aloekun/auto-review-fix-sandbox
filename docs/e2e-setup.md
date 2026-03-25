@@ -65,7 +65,7 @@ E2E_GITHUB_REPO=<owner>/test-review-fix-sandbox
 ## テストの実行
 
 ```bash
-pnpm py-test:e2e
+pnpm test:e2e
 ```
 
 内部では以下が実行される:

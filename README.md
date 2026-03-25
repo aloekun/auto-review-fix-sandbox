@@ -46,12 +46,13 @@
 **実装・修正完了の条件:** 以下の全チェックがエラーなしで通過し、結果をユーザーに報告すること。いかなるエラーもスキップ不可。
 
 ```bash
-pnpm py-lint          # ruff + mypy（lint + type-check）
-pnpm py-test          # unit / integration tests
-pnpm py-test:e2e      # E2E tests（.env.e2e 不在時は自動スキップ）
+pnpm lint             # ruff（lint）
+pnpm typecheck        # mypy（type-check）
+pnpm test             # unit / integration tests
+pnpm test:e2e         # E2E tests（.env.e2e 不在時は自動スキップ）
 ```
 
-`pnpm py-test:e2e` は `.env.e2e` が存在しない場合に自動スキップする。事前に環境変数を確認する必要はなく、常にそのまま実行すること。
+`pnpm test:e2e` は `.env.e2e` が存在しない場合に自動スキップする。事前に環境変数を確認する必要はなく、常にそのまま実行すること。
 
 完了報告時は以下のフォーマットで検証結果を必ず出力する:
 
