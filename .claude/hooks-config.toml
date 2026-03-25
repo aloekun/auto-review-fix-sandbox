@@ -27,17 +27,17 @@ steps = [
 step_timeout = 120
 
 [[stop_quality.steps]]
-name = "py-lint"
-cmd = "pnpm py-lint"
+name = "lint"
+cmd = "pnpm lint"
 
 [[stop_quality.steps]]
 name = "typecheck"
 cmd = "pnpm typecheck"
 
 [[stop_quality.steps]]
-name = "py-test"
-cmd = "pnpm py-test"
+name = "test"
+cmd = "pnpm test"
 
 [[stop_quality.steps]]
-name = "py-test:e2e"
-cmd = "pnpm py-test:e2e"
+name = "test:e2e"
+cmd = "pnpm test:e2e"
