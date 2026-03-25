@@ -31,6 +31,10 @@ name = "py-lint"
 cmd = "pnpm py-lint"
 
 [[stop_quality.steps]]
+name = "typecheck"
+cmd = "pnpm typecheck"
+
+[[stop_quality.steps]]
 name = "py-test"
 cmd = "pnpm py-test"
 

@@ -6,15 +6,6 @@ on:
   pull_request:
 
 jobs:
-  typecheck:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - name: Install TypeScript
-        run: npm install --no-save typescript @types/node
-      - name: Type check
-        run: npx tsc --noEmit
-
   python-lint-and-test:
     runs-on: ubuntu-latest
     defaults:
@@ -25,7 +16,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: "3.11"
+          python-version: "3.10"
       - name: Install dependencies
         run: pip install -r requirements.txt -r requirements-dev.txt
       - name: Lint (ruff)
