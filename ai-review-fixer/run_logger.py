@@ -57,9 +57,7 @@ class RunLogger:
         try:
             commit_hash = self._get_commit_hash(workspace_dir)
         except Exception as exc:
-            raise RuntimeError(
-                f"failed to inspect git state in {workspace_dir}"
-            ) from exc
+            raise RuntimeError(f"failed to inspect git state in {workspace_dir}") from exc
         committed = commit_hash != original_head_sha
 
         files_changed: list[str] = []
@@ -98,9 +96,7 @@ class RunLogger:
         pr = log_data["pr"]
         attempt = log_data["attempt"]
         log_file = log_dir / f"pr-{pr}-run-{attempt}.json"
-        log_file.write_text(
-            json.dumps(log_data, indent=2, ensure_ascii=False), encoding="utf-8"
-        )
+        log_file.write_text(json.dumps(log_data, indent=2, ensure_ascii=False), encoding="utf-8")
         print(f"[run_logger] Saved log: {log_file}", flush=True)
 
     # ------------------------------------------------------------------
@@ -126,9 +122,7 @@ class RunLogger:
         return self._run_git(workspace_dir, "log", "-1", "--format=%H").strip()
 
     def _get_changed_files(self, workspace_dir: Path, base_sha: str) -> list:
-        stdout = self._run_git(
-            workspace_dir, "diff", "--name-only", f"{base_sha}..HEAD"
-        )
+        stdout = self._run_git(workspace_dir, "diff", "--name-only", f"{base_sha}..HEAD")
         return [f for f in stdout.strip().split("\n") if f]
 
     def _get_diff_after(self, workspace_dir: Path, base_sha: str) -> str:
