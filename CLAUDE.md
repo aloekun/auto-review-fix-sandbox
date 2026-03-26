@@ -8,7 +8,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## コマンド
 
-Bash コマンドは `pnpm` スクリプト経由で実行する（許可管理の簡素化のため）。`jj` や `gh` を直接実行せず、対応する `pnpm` スクリプトを使うこと。
+Bash コマンドは `pnpm` スクリプト経由で実行する（許可管理の簡素化のため）。`jj` や `gh` を直接実行せず、対応する `pnpm jj-status`, `pnpm gh-repo` などのスクリプトを使うこと。
 
 詳細は [package.json](package.json) を参照。
 
