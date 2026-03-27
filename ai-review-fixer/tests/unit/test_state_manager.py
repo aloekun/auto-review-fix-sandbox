@@ -12,6 +12,7 @@ def sm(tmp_path):
 
 # --- owner/repo/pr_number API ---
 
+
 def test_initial_fix_attempts_is_zero(sm):
     assert sm.get_fix_attempts("owner", "repo", 1) == 0
 
@@ -105,6 +106,7 @@ def test_non_object_json_returns_defaults(tmp_path, content):
 
 # --- key format ---
 
+
 def test_key_uses_owner_repo_pr_format(tmp_path):
     """state.json のキー形式が {owner}/{repo}/pr_{N} になっている。"""
     import json
@@ -118,18 +120,22 @@ def test_key_uses_owner_repo_pr_format(tmp_path):
 
 # --- legacy key detection ---
 
-def test_legacy_key_triggers_warning(tmp_path, capsys):
-    """旧形式のキー（/ を含まない）が存在するとき stderr に警告ログを出力する。"""
+
+def test_legacy_key_auto_removed(tmp_path, capsys):
+    """旧形式のキー（/ を含まない）が存在するとき自動削除される。"""
     import json
 
     state_file = tmp_path / "state.json"
     # 旧形式でファイルを作成
-    state_file.write_text(
-        json.dumps({"pr_1": {"fix_attempts": 1, "processed_review_ids": []}})
-    )
+    state_file.write_text(json.dumps({"pr_1": {"fix_attempts": 1, "processed_review_ids": []}}))
 
     sm = StateManager(state_file=state_file)
     sm.get_fix_attempts("owner", "repo", 1)
 
     captured = capsys.readouterr()
-    assert "legacy" in captured.err.lower()
+    assert "removed" in captured.out.lower()
+    assert "pr_1" in captured.out
+
+    # state.json から旧キーが削除されていることを確認
+    data = json.loads(state_file.read_text())
+    assert "pr_1" not in data
