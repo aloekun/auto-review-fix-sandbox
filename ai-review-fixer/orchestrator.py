@@ -228,11 +228,6 @@ class Orchestrator:
         ]
 
         if not new_reviews:
-            print(
-                f"[orchestrator] PR #{pr_number}: "
-                f"no new CHANGES_REQUESTED reviews from {reviewer_bots}, skip.",
-                flush=True,
-            )
             return
 
         print(
@@ -349,11 +344,6 @@ class Orchestrator:
         ]
 
         if not new_reviews:
-            print(
-                f"[orchestrator] PR #{pr_number}: "
-                f"no new CHANGES_REQUESTED reviews from {reviewer_bots}, skip.",
-                flush=True,
-            )
             return
 
         print(
@@ -624,7 +614,7 @@ if __name__ == "__main__":
                     flush=True,
                 )
                 traceback.print_exc()
-            print(f"[daemon] Sleeping {poll_interval} seconds...", flush=True)
+            print(f"[daemon] Sleeping {poll_interval} seconds...\n", flush=True)
             time.sleep(poll_interval)
     else:
         orchestrator.run_once()

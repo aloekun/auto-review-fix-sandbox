@@ -4,12 +4,11 @@ state_manager.py
 state.json はgitignore済み。
 
 キー形式: {owner}/{repo}/pr_{N}  (Phase 9 multi-repo 対応)
-旧キー形式 pr_{N} が検出された場合は警告ログを出力する。
+旧キー形式 pr_{N} が検出された場合は自動削除する。
 """
 
 import json
 import os
-import sys
 from pathlib import Path
 
 _DEFAULT_STATE_FILE = Path(__file__).parent / "state.json"
@@ -29,17 +28,11 @@ class StateManager:
         state = self._load()
         return state.get(self._key(owner, repo, pr_number), {}).get("fix_attempts", 0)
 
-    def get_processed_review_ids(
-        self, owner: str, repo: str, pr_number: int
-    ) -> list[str]:
+    def get_processed_review_ids(self, owner: str, repo: str, pr_number: int) -> list[str]:
         state = self._load()
-        return state.get(self._key(owner, repo, pr_number), {}).get(
-            "processed_review_ids", []
-        )
+        return state.get(self._key(owner, repo, pr_number), {}).get("processed_review_ids", [])
 
-    def record_fix(
-        self, owner: str, repo: str, pr_number: int, review_ids: list
-    ) -> int:
+    def record_fix(self, owner: str, repo: str, pr_number: int, review_ids: list) -> int:
         """修正完了を記録し、新しい fix_attempts の値を返す。"""
         state = self._load()
         key = self._key(owner, repo, pr_number)
@@ -69,16 +62,17 @@ class StateManager:
                     data = json.load(f)
                 if not isinstance(data, dict):
                     return {}
-                # 旧形式キー（/ を含まない）を検出して警告する
-                for key in data:
-                    if "/" not in key:
-                        print(
-                            f"[state_manager] WARNING: legacy key detected: {key!r}. "
-                            "This key will be ignored. "
-                            "Delete state.json to reset.",
-                            file=sys.stderr,
-                            flush=True,
-                        )
+                # 旧形式キー（/ を含まない）を自動削除する
+                legacy_keys = [k for k in data if "/" not in k]
+                if legacy_keys:
+                    for key in legacy_keys:
+                        del data[key]
+                    n = len(legacy_keys)
+                    print(
+                        f"[state_manager] Removed {n} legacy key(s) from state.json: {legacy_keys}",
+                        flush=True,
+                    )
+                    self._save(data)
                 return data
             except json.JSONDecodeError:
                 return {}
