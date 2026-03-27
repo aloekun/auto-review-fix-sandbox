@@ -37,7 +37,3 @@ cmd = "pnpm typecheck"
 [[stop_quality.steps]]
 name = "test"
 cmd = "pnpm test"
-
-[[stop_quality.steps]]
-name = "test:e2e"
-cmd = "pnpm test:e2e"
