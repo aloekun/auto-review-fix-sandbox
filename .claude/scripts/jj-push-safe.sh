@@ -18,4 +18,5 @@ if [ -z "$result" ]; then
   exit 1
 fi
 
+pnpm test:e2e
 jj git push "$@"
